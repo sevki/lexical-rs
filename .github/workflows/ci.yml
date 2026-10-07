@@ -61,7 +61,14 @@ jobs:
           unzip -q "$RUNNER_TEMP"/verus-dl/*.zip -d "$HOME/verus"
           VERUS_BIN="$(find "$HOME/verus" -name verus -type f -perm -u+x | head -1)"
           echo "VERUS=$VERUS_BIN" >> "$GITHUB_ENV"
-          # Verus pins its own rustc; install exactly the toolchain it asks for.
-          TOOLCHAIN="$("$VERUS_BIN" --version --output-json | jq -r '.verus.toolchain')"
+          # Verus pins its own rustc and refuses to run (even `--version`) without it, so
+          # read the toolchain from its "rustup install <toolchain>" hint, falling back to
+          # the version.json shipped next to the binary.
+          TOOLCHAIN="$("$VERUS_BIN" --version 2>&1 | sed -n 's/.*rustup install \([^[:space:]]*\).*/\1/p' | head -1 | sed 's/\x1b\[[0-9;]*m//g')"
+          if [ -z "$TOOLCHAIN" ]; then
+            TOOLCHAIN="$(jq -r '.verus.toolchain // empty' "$(dirname "$VERUS_BIN")/version.json")"
+          fi
+          echo "Verus wants toolchain: $TOOLCHAIN"
+          test -n "$TOOLCHAIN"
           rustup toolchain install "$TOOLCHAIN" --profile minimal
       - run: verus/verify.sh
