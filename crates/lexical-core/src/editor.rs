@@ -287,11 +287,10 @@ impl Editor {
     /// Replace the whole document (e.g. after loading JSON). Clears history.
     pub fn set_state(&mut self, state: EditorState) {
         let mut state = state;
-        if state.selection.is_none() {
-            if let Some(&b) = state.line_blocks().first() {
+        if state.selection.is_none()
+            && let Some(&b) = state.line_blocks().first() {
                 state.selection = Some(crate::Selection::collapsed(crate::Point::element(b, 0)));
             }
-        }
         state.dirty = state.nodes.keys().copied().collect();
         self.history.clear();
         self.commit(state, &[Tag::Historic]);

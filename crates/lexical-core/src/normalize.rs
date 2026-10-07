@@ -48,12 +48,11 @@ impl EditorState {
                 self.remove(k);
                 continue;
             }
-            if let Some(&nx) = self.node(el).children.get(i + 1) {
-                if self.mergeable(k, nx) {
+            if let Some(&nx) = self.node(el).children.get(i + 1)
+                && self.mergeable(k, nx) {
                     self.merge_text(k, nx);
                     continue;
                 }
-            }
             i += 1;
         }
     }

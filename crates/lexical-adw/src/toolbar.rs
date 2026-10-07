@@ -91,11 +91,10 @@ impl Toolbar {
         {
             let (emit, syncing) = (emit.clone(), syncing.clone());
             blocks.connect_selected_notify(move |d| {
-                if !syncing.get() {
-                    if let Some((_, ty)) = BLOCKS.get(d.selected() as usize) {
+                if !syncing.get()
+                    && let Some((_, ty)) = BLOCKS.get(d.selected() as usize) {
                         emit(Command::SetBlockType(*ty));
                     }
-                }
             });
         }
         root.append(&blocks);

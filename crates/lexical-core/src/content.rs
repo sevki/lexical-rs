@@ -87,12 +87,11 @@ impl EditorState {
             let par = self.parent(x.key).unwrap();
             return Point::element(par, self.index_in_parent(x.key).unwrap());
         }
-        if let Some(x) = content.pieces.last() {
-            if !x.is_text && x.start + x.len == offset {
+        if let Some(x) = content.pieces.last()
+            && !x.is_text && x.start + x.len == offset {
                 let par = self.parent(x.key).unwrap();
                 return Point::element(par, self.index_in_parent(x.key).unwrap() + 1);
             }
-        }
         Point::element(block, 0)
     }
 

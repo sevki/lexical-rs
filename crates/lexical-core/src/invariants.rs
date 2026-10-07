@@ -56,11 +56,9 @@ impl EditorState {
                     NodeData::Text { format: fa, style: sa, mode: TextMode::Normal, .. },
                     NodeData::Text { format: fb, style: sb, mode: TextMode::Normal, .. },
                 ) = (&self.node(w[0]).data, &self.node(w[1]).data)
-                {
-                    if fa == fb && sa == sb {
+                    && fa == fb && sa == sb {
                         return Err(format!("adjacent mergeable text nodes {} {}", w[0], w[1]));
                     }
-                }
             }
         }
         // Selection validity.

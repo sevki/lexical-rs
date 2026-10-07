@@ -246,11 +246,10 @@ impl EditorState {
     }
 
     pub fn toggle_check(&mut self, item: NodeKey) {
-        if self.list_type_of_item(item) == Some(ListType::Check) {
-            if let NodeData::ListItem { checked } = &mut self.node_mut(item).data {
+        if self.list_type_of_item(item) == Some(ListType::Check)
+            && let NodeData::ListItem { checked } = &mut self.node_mut(item).data {
                 *checked = Some(!checked.unwrap_or(false));
             }
-        }
     }
 
     // ---------------------------------------------------------- indentation

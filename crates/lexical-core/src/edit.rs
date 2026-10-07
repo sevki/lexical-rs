@@ -207,16 +207,14 @@ impl EditorState {
     fn prefer_text_point(&self, parent: NodeKey, idx: usize) -> Point {
         let kids = &self.node(parent).children;
         let idx = idx.min(kids.len());
-        if let Some(&p) = idx.checked_sub(1).and_then(|i| kids.get(i)) {
-            if self.node(p).is_text() {
+        if let Some(&p) = idx.checked_sub(1).and_then(|i| kids.get(i))
+            && self.node(p).is_text() {
                 return Point::text(p, self.node(p).text_len());
             }
-        }
-        if let Some(&n) = kids.get(idx) {
-            if self.node(n).is_text() {
+        if let Some(&n) = kids.get(idx)
+            && self.node(n).is_text() {
                 return Point::text(n, 0);
             }
-        }
         Point::element(parent, idx)
     }
 
@@ -263,8 +261,8 @@ impl EditorState {
         // Merge the end block into the start block.
         let blk_a = self.line_block_of(a.parent);
         let blk_b = self.line_block_of(b.parent);
-        if let (Some(ba), Some(bb)) = (blk_a, blk_b) {
-            if ba != bb {
+        if let (Some(ba), Some(bb)) = (blk_a, blk_b)
+            && ba != bb {
                 let old_parent = self.parent(bb);
                 let kids = self.node(bb).children.clone();
                 for k in kids {
@@ -280,7 +278,6 @@ impl EditorState {
                     self.remove(c);
                 }
             }
-        }
     }
 
     pub fn delete_character(&mut self, backward: bool) -> Result<()> {

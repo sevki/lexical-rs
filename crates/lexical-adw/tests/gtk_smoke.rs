@@ -122,11 +122,10 @@ fn changed_callback_and_toolbar_widgets() {
     win.present();
     // Toolbar buttons dispatch real commands.
     fn find_button(w: &gtk::Widget, tip: &str) -> Option<gtk::ToggleButton> {
-        if let Some(b) = w.downcast_ref::<gtk::ToggleButton>() {
-            if b.tooltip_text().as_deref() == Some(tip) {
+        if let Some(b) = w.downcast_ref::<gtk::ToggleButton>()
+            && b.tooltip_text().as_deref() == Some(tip) {
                 return Some(b.clone());
             }
-        }
         let mut c = w.first_child();
         while let Some(child) = c {
             if let Some(b) = find_button(&child, tip) {
