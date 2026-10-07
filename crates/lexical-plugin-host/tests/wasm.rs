@@ -27,6 +27,22 @@ fn plugin() -> WasmPlugin {
     WasmPlugin::load(&std::fs::read(guest()).unwrap()).unwrap()
 }
 
+/// The test plugin that handles custom commands (see `plugins/command-fixture`).
+fn fixture() -> WasmPlugin {
+    static WASM: OnceLock<PathBuf> = OnceLock::new();
+    let path = WASM.get_or_init(|| {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/command-fixture");
+        let status = Process::new(env!("CARGO"))
+            .args(["build", "--release", "--target", "wasm32-wasip2", "--quiet"])
+            .current_dir(&dir)
+            .status()
+            .expect("run cargo");
+        assert!(status.success(), "building the fixture plugin failed");
+        dir.join("target/wasm32-wasip2/release/command_fixture.wasm")
+    });
+    WasmPlugin::load(&std::fs::read(path).unwrap()).unwrap()
+}
+
 fn styles(e: &Editor) -> Vec<BlockStyle> {
     Layout::build(e.state()).lines.iter().map(|l| l.style.clone()).collect()
 }
@@ -154,4 +170,67 @@ fn a_tiny_memory_cap_is_refused_at_load() {
         Err(PluginError::Load(m)) => assert!(m.contains("limit") || m.contains("memory"), "{m}"),
         _ => panic!("a 1 KiB memory cap should refuse the plugin"),
     }
+}
+
+#[test]
+fn a_plugin_answers_a_custom_command_with_a_block_change() {
+    let mut e = Editor::new();
+    e.add_plugin(Box::new(fixture()));
+    type_str(&mut e, "title");
+    assert!(e.dispatch(Command::Custom("heading".into())), "the plugin handled it");
+    assert!(matches!(styles(&e)[0], BlockStyle::Heading(HeadingTag::H1)));
+    assert!(!e.dispatch(Command::Custom("unknown".into())), "unrecognised commands fall through");
+}
+
+#[test]
+fn a_read_only_editor_never_consults_plugins() {
+    let mut e = Editor::new();
+    e.add_plugin(Box::new(fixture()));
+    type_str(&mut e, "title");
+    e.set_editable(false);
+    assert!(!e.dispatch(Command::Custom("heading".into())));
+    assert!(matches!(styles(&e)[0], BlockStyle::Paragraph), "the plugin could not change a read-only document");
+}
+
+#[test]
+fn a_command_a_plugin_dispatches_reaches_the_other_handlers() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+    let mut e = Editor::new();
+    e.add_plugin(Box::new(fixture())); // priority i32::MIN: runs after the handler below
+    let pings = Rc::new(Cell::new(0));
+    let seen = pings.clone();
+    e.register_command(0, move |_, cmd| {
+        if *cmd == Command::Custom("ping".into()) {
+            seen.set(seen.get() + 1);
+            return true;
+        }
+        false
+    });
+    // the plugin's own handler is reached by "chain" and dispatches "ping" while running
+    assert!(e.dispatch(Command::Custom("chain".into())));
+    assert_eq!(pings.get(), 1, "the application handler saw the plugin's dispatched command");
+}
+
+#[test]
+fn the_lowest_possible_priority_is_accepted() {
+    // i32::MIN used to overflow when handlers were sorted by negated priority
+    let mut e = Editor::new();
+    e.add_plugin(Box::new(fixture()));
+    e.register_command(i32::MAX, |_, _| false);
+    assert!(e.dispatch(Command::Custom("heading".into())));
+}
+
+#[test]
+fn recorded_failures_are_bounded() {
+    let mut e = Editor::new();
+    let p = fixture();
+    let errors = p.errors();
+    e.add_plugin(Box::new(p));
+    for _ in 0..500 {
+        e.dispatch(Command::Custom("crash".into()));
+    }
+    let n = errors.borrow().len();
+    assert!(n > 0 && n <= 64, "{n} failures kept");
+    e.state().check_invariants().unwrap();
 }

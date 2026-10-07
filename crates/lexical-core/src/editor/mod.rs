@@ -71,7 +71,9 @@ pub struct ListenerId(u64);
 
 type UpdateListener = Box<dyn FnMut(&UpdateEvent)>;
 type CommitHook = Box<dyn FnMut(&CommitInfo)>;
-type CommandHandler = Box<dyn FnMut(&mut Editor, &Command) -> bool>;
+/// Shared so a dispatch can run handlers without taking them out of the editor: a handler
+/// may itself dispatch a command, which must still reach the other handlers.
+type CommandHandler = std::rc::Rc<std::cell::RefCell<dyn FnMut(&mut Editor, &Command) -> bool>>;
 type Transform = Box<dyn Fn(&mut EditorState, NodeKey) -> Result<()>>;
 /// Reports `(can_undo, can_redo)` for an external history (e.g. a collaborative one).
 type HistoryProvider = Box<dyn Fn() -> (bool, bool)>;
@@ -186,8 +188,9 @@ impl Editor {
         f: impl FnMut(&mut Editor, &Command) -> bool + 'static,
     ) -> ListenerId {
         let id = self.fresh_id();
-        self.command_handlers.push((priority, id, Box::new(f)));
-        self.command_handlers.sort_by_key(|(p, _, _)| -*p);
+        self.command_handlers.push((priority, id, std::rc::Rc::new(std::cell::RefCell::new(f))));
+        // Highest priority first; `Reverse` rather than negation, which overflows at i32::MIN.
+        self.command_handlers.sort_by_key(|(p, _, _)| std::cmp::Reverse(*p));
         id
     }
 

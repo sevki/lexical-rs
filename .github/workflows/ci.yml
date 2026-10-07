@@ -50,6 +50,7 @@ jobs:
           workspaces: |
             .
             plugins/markdown-shortcuts
+            plugins/command-fixture
       - run: cargo test -p lexical-plugin-host
 
   gtk:

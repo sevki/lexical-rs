@@ -30,6 +30,18 @@ impl Default for Budget {
 /// Fuel for instantiating a plugin and asking it for its `info`.
 const LOAD_FUEL: u64 = 500_000_000;
 
+/// Most failures kept per plugin; older ones are dropped so a plugin that fails on every
+/// command cannot make the host's memory grow without limit.
+const MAX_ERRORS: usize = 64;
+
+fn record(errors: &RefCell<Vec<PluginError>>, error: PluginError) {
+    let mut errors = errors.borrow_mut();
+    if errors.len() >= MAX_ERRORS {
+        errors.remove(0);
+    }
+    errors.push(error);
+}
+
 /// Deepest chain of plugin → command → plugin → command… before it is cut off.
 const MAX_REENTRY: u32 = 8;
 
@@ -140,8 +152,13 @@ impl Plugin for WasmPlugin {
         let (instance, errors) = (self.instance.clone(), self.errors.clone());
         let id = editor.register_command(self.info.priority, move |ed, cmd| {
             let Some(wit_cmd) = command_to_wit(cmd) else { return false };
+            // Read-only is enforced here, not left to the plugin: a read-only editor allows
+            // selection changes only, so plugins are not consulted and cannot mutate it.
+            if !ed.is_editable() {
+                return false;
+            }
             if depth.get() >= MAX_REENTRY {
-                errors.borrow_mut().push(PluginError::Call("plugin commands nest too deeply".into()));
+                record(&errors, PluginError::Call("plugin commands nest too deeply".into()));
                 return false;
             }
             let ctx = command_context(ed.state(), ed.is_editable());
@@ -156,7 +173,7 @@ impl Plugin for WasmPlugin {
                     outcome.handled
                 }
                 Err(e) => {
-                    errors.borrow_mut().push(e);
+                    record(&errors, e);
                     false
                 }
             }
@@ -171,7 +188,7 @@ impl Plugin for WasmPlugin {
                 match ops {
                     Ok(ops) => apply_in_transform(state, key, &ops),
                     Err(e) => {
-                        errors.borrow_mut().push(e);
+                        record(&errors, e);
                         Ok(())
                     }
                 }
