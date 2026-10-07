@@ -10,3 +10,4 @@ repository.workspace = true
 lexical-core = { path = "../lexical-core" }
 loro = "1.16"
 serde_json.workspace = true
+similar = "2"

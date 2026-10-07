@@ -108,14 +108,21 @@ impl SyncDoc {
             return Ok(());
         }
         let caret = state.selection.as_ref().map(|s| flat_offset(state, &s.focus));
-        let edit = minimal_edit(&self.last.chars, &next.chars);
-        let (p, old_end, new_end) = align_edit(&self.last.chars, &next.chars, edit, caret);
-        if old_end > p {
-            self.text.delete(p, old_end - p).map_err(crdt)?;
+        let mut hunks = hunks(&self.last.chars, &next.chars);
+        if let [only] = hunks.as_mut_slice() {
+            *only = align_edit(&self.last.chars, &next.chars, *only, caret);
         }
-        if new_end > p {
-            let inserted: String = next.chars[p..new_end].iter().collect();
-            self.text.insert(p, &inserted).map_err(crdt)?;
+        // Back to front, so the positions of the hunks still to apply stay valid. Each
+        // hunk is its own operation: characters between hunks keep their identity, and a
+        // peer's concurrent edit there still lands in the text it was made in.
+        for &(old_start, old_end, new_start, new_end) in hunks.iter().rev() {
+            if old_end > old_start {
+                self.text.delete(old_start, old_end - old_start).map_err(crdt)?;
+            }
+            if new_end > new_start {
+                let inserted: String = next.chars[new_start..new_end].iter().collect();
+                self.text.insert(old_start, &inserted).map_err(crdt)?;
+            }
         }
         // Text inserted inside a marked range inherits its marks, so read back what the
         // CRDT really holds and correct only the differences.
@@ -281,18 +288,16 @@ fn from_loro(v: &LoroValue) -> Option<MarkValue> {
     }
 }
 
+/// One replacement: `old[old_start..old_end]` becomes `new[new_start..new_end]`.
+type Hunk = (usize, usize, usize, usize);
+
 /// A text diff cannot tell deleting `" brave"` from `"brave "` (or typing the second `l` of
 /// "hello" from the first): the results are identical but the CRDT operations are not, and
 /// a concurrent peer's edit lands differently. Among the equivalent placements of a pure
 /// insertion or deletion, pick the one that ends at the caret, which is where the user
 /// actually made the edit.
-fn align_edit(
-    old: &[char],
-    new: &[char],
-    edit: (usize, usize, usize),
-    caret: Option<usize>,
-) -> (usize, usize, usize) {
-    let (Some(caret), (p, old_end, new_end)) = (caret, edit) else { return edit };
+fn align_edit(old: &[char], new: &[char], edit: Hunk, caret: Option<usize>) -> Hunk {
+    let (Some(caret), (p, old_end, _, new_end)) = (caret, edit) else { return edit };
     if new_end == p && old_end > p {
         let len = old_end - p;
         let mut lo = p;
@@ -304,7 +309,7 @@ fn align_edit(
             hi += 1;
         }
         let start = caret.clamp(lo, hi);
-        (start, start + len, start)
+        (start, start + len, start, start)
     } else if old_end == p && new_end > p {
         let len = new_end - p;
         let mut lo = p;
@@ -316,16 +321,37 @@ fn align_edit(
             hi += 1;
         }
         let start = caret.saturating_sub(len).clamp(lo, hi);
-        (start, start, start + len)
+        (start, start, start, start + len)
     } else {
         edit
     }
 }
 
-/// `(start, old_end, new_end)`: replace `old[start..old_end]` with `new[start..new_end]`.
-fn minimal_edit(old: &[char], new: &[char]) -> (usize, usize, usize) {
+/// The separate replacements that turn `old` into `new`, in document order. Unchanged text
+/// between two changes is left alone.
+fn hunks(old: &[char], new: &[char]) -> Vec<Hunk> {
     let prefix = old.iter().zip(new).take_while(|(a, b)| a == b).count();
     let max_suffix = old.len().min(new.len()) - prefix;
     let suffix = old.iter().rev().zip(new.iter().rev()).take(max_suffix).take_while(|(a, b)| a == b).count();
-    (prefix, old.len() - suffix, new.len() - suffix)
+    let (o, n) = (&old[prefix..old.len() - suffix], &new[prefix..new.len() - suffix]);
+    let mut out: Vec<Hunk> = vec![];
+    for op in similar::capture_diff_slices(similar::Algorithm::Myers, o, n) {
+        let (os, oe, ns, ne) = match op {
+            similar::DiffOp::Equal { .. } => continue,
+            similar::DiffOp::Delete { old_index, old_len, new_index } => (old_index, old_index + old_len, new_index, new_index),
+            similar::DiffOp::Insert { old_index, new_index, new_len } => (old_index, old_index, new_index, new_index + new_len),
+            similar::DiffOp::Replace { old_index, old_len, new_index, new_len } => {
+                (old_index, old_index + old_len, new_index, new_index + new_len)
+            }
+        };
+        let hunk = (os + prefix, oe + prefix, ns + prefix, ne + prefix);
+        match out.last_mut() {
+            Some(last) if last.1 == hunk.0 && last.3 == hunk.2 => {
+                last.1 = hunk.1;
+                last.3 = hunk.3;
+            }
+            _ => out.push(hunk),
+        }
+    }
+    out
 }

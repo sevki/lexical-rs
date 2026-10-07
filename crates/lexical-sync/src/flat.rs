@@ -48,11 +48,13 @@ pub struct Line {
     pub indent: u32,
     /// `Some` for check-list items only.
     pub checked: Option<bool>,
+    /// First number of the list holding a list item (the list's first item decides).
+    pub start: u32,
 }
 
 impl Default for Line {
     fn default() -> Self {
-        Line { kind: BlockKind::Paragraph, depth: 0, align: Align::Start, indent: 0, checked: None }
+        Line { kind: BlockKind::Paragraph, depth: 0, align: Align::Start, indent: 0, checked: None, start: 1 }
     }
 }
 
@@ -143,7 +145,17 @@ fn line_of(state: &EditorState, block: lexical_core::NodeKey) -> Line {
         }
         _ => (BlockKind::Paragraph, 0, None),
     };
-    Line { kind, depth, align: node.align, indent: node.indent, checked }
+    let start = match kind {
+        BlockKind::ListItem(_) => state
+            .parent(block)
+            .and_then(|p| match &state.node(p).data {
+                NodeData::List { start, .. } => Some(*start),
+                _ => None,
+            })
+            .unwrap_or(1),
+        _ => 1,
+    };
+    Line { kind, depth, align: node.align, indent: node.indent, checked, start }
 }
 
 /// Offset in the flat text of a document point.

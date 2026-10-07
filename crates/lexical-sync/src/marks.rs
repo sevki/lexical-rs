@@ -24,7 +24,7 @@ pub type Marks = BTreeMap<&'static str, MarkValue>;
 
 pub const KEYS: &[&str] = &[
     "bold", "italic", "strike", "underline", "code", "sub", "sup", "highlight", "link", "style", "block",
-    "list", "depth", "align", "indent", "checked",
+    "list", "depth", "start", "align", "indent", "checked",
 ];
 
 const FLAGS: [(TextFormat, &str); 8] = [
@@ -71,6 +71,9 @@ pub fn encode(attr: &CharAttr) -> Marks {
                     m.insert("list", MarkValue::Str(t.as_str().to_string()));
                     if line.depth > 0 {
                         m.insert("depth", MarkValue::Int(i64::from(line.depth)));
+                    }
+                    if line.start != 1 {
+                        m.insert("start", MarkValue::Int(i64::from(line.start)));
                     }
                     if line.checked == Some(true) {
                         m.insert("checked", MarkValue::Bool(true));
@@ -145,6 +148,7 @@ fn decode_line(get: &dyn Fn(&str) -> Option<MarkValue>) -> Line {
         depth: if is_item { uint(get, "depth", MAX_DEPTH) } else { 0 },
         align: string(get, "align").map_or(Align::Start, |a| Align::parse(&a)),
         indent: uint(get, "indent", u32::MAX),
+        start: if is_item && get("start").is_some() { uint(get, "start", u32::MAX) } else { 1 },
         checked: matches!(kind, BlockKind::ListItem(ListType::Check)).then(|| flag(get, "checked")),
     }
 }

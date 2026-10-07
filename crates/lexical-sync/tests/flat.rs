@@ -108,6 +108,7 @@ fn random_flat(r: &mut Rng) -> Flat {
                     align: [Align::Start, Align::Center, Align::Right][r.below(3)],
                     indent: r.below(4) as u32,
                     checked: Some(r.chance(2)),
+                    start: if r.chance(4) { 1 + r.below(9) as u32 } else { 1 },
                 });
             }
         }

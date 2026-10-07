@@ -42,7 +42,7 @@ fn build_line(
 ) {
     let block = match line.kind {
         BlockKind::ListItem(ty) => {
-            let list = lists.list_for(state, line.depth as usize, ty);
+            let list = lists.list_for(state, line.depth as usize, ty, line.start);
             let checked = (ty == ListType::Check).then(|| line.checked.unwrap_or(false));
             let item = state.create_node(NodeData::ListItem { checked });
             state.append_child(list, item);
@@ -136,7 +136,7 @@ impl ListStack {
 
     /// The list a new item at `depth` belongs in, creating wrapper items and lists as
     /// needed (a type change at the same depth starts a new list).
-    fn list_for(&mut self, state: &mut EditorState, depth: usize, ty: ListType) -> NodeKey {
+    fn list_for(&mut self, state: &mut EditorState, depth: usize, ty: ListType, start: u32) -> NodeKey {
         self.lists.truncate(depth + 1);
         if self.lists.len() == depth + 1 && self.lists[depth].1 != ty {
             self.lists.pop();
@@ -144,7 +144,9 @@ impl ListStack {
         while self.lists.len() < depth + 1 {
             let level = self.lists.len();
             let list_type = if level == depth { ty } else { self.lists.last().map_or(ty, |l| l.1) };
-            let list = state.create_node(NodeData::List { list_type, start: 1 });
+            // Only the list the item itself sits in takes the stated start.
+            let first = if level == depth { start } else { 1 };
+            let list = state.create_node(NodeData::List { list_type, start: first });
             match self.lists.last() {
                 None => state.append_child(ROOT_KEY, list),
                 Some(&(parent_list, _)) => {
