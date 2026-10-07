@@ -26,6 +26,8 @@ impl BlockType {
 }
 
 const MAX_INDENT: u32 = 10;
+/// Deepest list nesting `Indent` will create (mirrored by `max_depth` in `verus/domains/editor.rs`).
+pub const MAX_LIST_DEPTH: u32 = 8;
 
 impl EditorState {
     /// Line blocks touched by the selection, in document order.
@@ -100,12 +102,7 @@ impl EditorState {
         }
         for b in blocks {
             if self.node(b).node_type() == NodeType::ListItem {
-                if let Some(list) = self.parent(b) {
-                    if let NodeData::List { list_type, .. } = &mut self.node_mut(list).data {
-                        *list_type = ty;
-                    }
-                    self.fix_checked(list);
-                }
+                self.retype_item(b, ty);
                 continue;
             }
             let item = self.create_node(NodeData::ListItem {
@@ -121,6 +118,38 @@ impl EditorState {
         }
         self.merge_adjacent_lists();
         Ok(())
+    }
+
+    /// Give `item` list type `ty` without touching its siblings: the list is split
+    /// around the item (head / item / tail) unless the item is alone in it.
+    fn retype_item(&mut self, item: NodeKey, ty: ListType) {
+        let Some(list) = self.parent(item) else { return };
+        let NodeData::List { list_type, .. } = self.node(list).data else { return };
+        if list_type == ty {
+            return;
+        }
+        let idx = self.index_in_parent(item).unwrap();
+        if self.node(list).children.len() == 1 {
+            if let NodeData::List { list_type, .. } = &mut self.node_mut(list).data {
+                *list_type = ty;
+            }
+            self.fix_checked(list);
+            return;
+        }
+        let tail: Vec<_> = self.node(list).children[idx + 1..].to_vec();
+        let tail_data = self.node(list).data.clone();
+        let mid = self.create_node(NodeData::List { list_type: ty, start: 1 });
+        self.insert_after(list, mid);
+        self.append_child(mid, item);
+        if !tail.is_empty() {
+            let rest = self.create_node(tail_data);
+            self.insert_after(mid, rest);
+            for t in tail {
+                self.append_child(rest, t);
+            }
+        }
+        self.fix_checked(mid);
+        self.prune_empty_lists(list);
     }
 
     fn fix_checked(&mut self, list: NodeKey) {
@@ -253,16 +282,28 @@ impl EditorState {
             && self.node(item).children.iter().any(|&c| self.node(c).node_type() == NodeType::List)
     }
 
+    /// Nesting depth of a list item: 0 for a top-level item.
+    pub fn list_depth(&self, item: NodeKey) -> u32 {
+        let lists = self.ancestors(item).iter().filter(|&&a| self.node(a).node_type() == NodeType::List).count();
+        lists.saturating_sub(1) as u32
+    }
+
     fn indent_item(&mut self, item: NodeKey) {
         let Some(list) = self.parent(item) else { return };
+        if self.list_depth(item) >= MAX_LIST_DEPTH {
+            return;
+        }
         let data = self.node(list).data.clone();
         let (prev, next) = (self.prev_sibling(item), self.next_sibling(item));
-        let nested = |s: &EditorState, w: NodeKey| s.node(w).children.iter().copied().find(|&c| s.node(c).node_type() == NodeType::List);
+        // A wrapper may hold several lists (after a type change); join the adjacent one.
+        let lists_of = |s: &EditorState, w: NodeKey| -> Vec<NodeKey> {
+            s.node(w).children.iter().copied().filter(|&c| s.node(c).node_type() == NodeType::List).collect()
+        };
         if let Some(w) = prev.filter(|&w| self.is_wrapper(w)) {
-            let nl = nested(self, w).unwrap();
+            let nl = *lists_of(self, w).last().unwrap();
             self.append_child(nl, item);
         } else if let Some(w) = next.filter(|&w| self.is_wrapper(w)) {
-            let nl = nested(self, w).unwrap();
+            let nl = lists_of(self, w)[0];
             self.insert_child(nl, 0, item);
         } else {
             let w = self.create_node(NodeData::ListItem { checked: None });
@@ -321,45 +362,38 @@ impl EditorState {
             return Ok(());
         }
         let (first, last) = (leaves[0], *leaves.last().unwrap());
-        match url {
-            None => {
-                let mut links: Vec<NodeKey> = vec![];
-                for &l in &leaves {
-                    if let Some(p) = self.parent(l).filter(|&p| self.node(p).is_inline()) {
-                        if !links.contains(&p) {
-                            links.push(p);
+        // Process each run of adjacent siblings. A run inside an existing link is first
+        // isolated into its own link, so text outside the selection keeps its old link.
+        let mut i = 0;
+        while i < leaves.len() {
+            let parent = self.parent(leaves[i]).unwrap();
+            let mut j = i;
+            while j + 1 < leaves.len() && self.next_sibling(leaves[j]) == Some(leaves[j + 1]) {
+                j += 1;
+            }
+            if self.node(parent).is_inline() {
+                let link = self.isolate_in_link(parent, leaves[i], leaves[j]);
+                match url {
+                    Some(u) => {
+                        if let NodeData::Link { url: lu, .. } = &mut self.node_mut(link).data {
+                            *lu = u.to_string();
                         }
                     }
+                    None => self.unwrap_link(link),
                 }
-                for l in links {
-                    self.unwrap_link(l);
-                }
-            }
-            Some(u) => {
-                let mut i = 0;
-                while i < leaves.len() {
-                    let parent = self.parent(leaves[i]).unwrap();
-                    let mut j = i;
-                    while j + 1 < leaves.len() && self.next_sibling(leaves[j]) == Some(leaves[j + 1]) {
-                        j += 1;
-                    }
-                    if let NodeData::Link { url: lu, .. } = &mut self.node_mut(parent).data {
-                        *lu = u.to_string();
-                    } else {
-                        let link = self.create_node(NodeData::Link {
-                            url: u.to_string(),
-                            target: None,
-                            rel: None,
-                            title: None,
-                        });
-                        self.insert_before(leaves[i], link);
-                        for &l in &leaves[i..=j] {
-                            self.append_child(link, l);
-                        }
-                    }
-                    i = j + 1;
+            } else if let Some(u) = url {
+                let link = self.create_node(NodeData::Link {
+                    url: u.to_string(),
+                    target: None,
+                    rel: None,
+                    title: None,
+                });
+                self.insert_before(leaves[i], link);
+                for &l in &leaves[i..=j] {
+                    self.append_child(link, l);
                 }
             }
+            i = j + 1;
         }
         let leaf_pt = |s: &EditorState, k: NodeKey, end: bool| {
             if s.node(k).is_text() {
@@ -379,6 +413,33 @@ impl EditorState {
             sel.focus = ep;
         }
         Ok(())
+    }
+
+    /// Split `link` so that a link containing exactly the children `first..=last`
+    /// exists (copies of its attributes keep the head and tail linked as before).
+    /// Returns that link.
+    fn isolate_in_link(&mut self, link: NodeKey, first: NodeKey, last: NodeKey) -> NodeKey {
+        let data = self.node(link).data.clone();
+        let mut target = link;
+        let a = self.index_in_parent(first).unwrap();
+        if a > 0 {
+            let tail: Vec<_> = self.node(link).children[a..].to_vec();
+            target = self.create_node(data.clone());
+            self.insert_after(link, target);
+            for k in tail {
+                self.append_child(target, k);
+            }
+        }
+        let b = self.index_in_parent(last).unwrap();
+        if b + 1 < self.node(target).children.len() {
+            let tail: Vec<_> = self.node(target).children[b + 1..].to_vec();
+            let rest = self.create_node(data);
+            self.insert_after(target, rest);
+            for k in tail {
+                self.append_child(rest, k);
+            }
+        }
+        target
     }
 
     fn unwrap_link(&mut self, link: NodeKey) {

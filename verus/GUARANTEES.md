@@ -6,7 +6,7 @@ What is **proved** (Verus), what each domain **owes** (obligations), and what is
 generic kernels are proved once; the Lexical editor is a *domain* that discharges the
 obligations; everything outside the model is listed as trusted.
 
-Verified with `verus/verify.sh`: **86 verified, 0 errors** (Verus rolling release, 2026-10-07).
+Verified with `verus/verify.sh`: **92 verified, 0 errors** (Verus rolling release, 2026-10-07).
 
 ## Notation
 
@@ -66,7 +66,8 @@ Obligations R1 and R2 are discharged for all ten commands (insert, enter, backsp
 delete, set block kind, indent, outdent, format, select, select-all). `Inv`:
 
 * at least one block; every block kind in range (heading 1–6, list type ≤ 2, depth ≤ 8) and
-  indent ≤ 10
+  indent ≤ 10. The bounds are real limits in production (`MAX_LIST_DEPTH`, `MAX_INDENT` in
+  `blocks.rs`), enforced by `Indent`; imported documents are not clamped to them yet.
 * anchor and focus point inside the document (block exists, offset ≤ block length) —
   `Normalize` is the model of `EditorState::validate_selection`, run on every commit
 
@@ -79,7 +80,9 @@ Intent properties ("delta laws"), proved per command:
 | Backspace inside a block | removes exactly one character (`backspace_removes_one`) |
 | Forward Delete | preserves `Inv` (R2); the exact one-character law is proved for Backspace only |
 | Backspace at block start | merging into the previous block loses **no** characters (`backspace_merge_loses_nothing`) |
-| Enter | conserves every character, adds exactly one block (`enter_conserves_text`) |
+| Enter in a paragraph / heading / quote / non-empty list item | conserves every character, adds exactly one block (`enter_in_plain_block_conserves_text`) |
+| Enter in a code block | inserts exactly one line break, no new block (`enter_in_code_inserts_a_line_break`); double Enter at the end removes only the trailing break and opens one paragraph (`enter_exits_code_block`) |
+| Enter in an empty list item | outdents it; no characters or blocks change (`enter_on_empty_item_outdents`) |
 | Kind / Indent / Outdent / Format | conserve the block count and every block's length; formatting leaves code points untouched |
 | Select | never edits content |
 

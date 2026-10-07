@@ -357,13 +357,15 @@ impl Editor {
 
     fn handle_default(&mut self, cmd: &Command) -> bool {
         use Command::*;
+        // A read-only editor allows selection changes only; history would replace the
+        // document, so it is gated like every other edit.
+        if !self.editable && !matches!(cmd, SelectAll) {
+            return false;
+        }
         match cmd {
             Undo => return self.undo(),
             Redo => return self.redo(),
             _ => {}
-        }
-        if !self.editable && !matches!(cmd, SelectAll) {
-            return false;
         }
         let kind = match cmd {
             InsertText(t) if !t.contains('\n') => ChangeKind::Typing,

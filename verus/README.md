@@ -17,7 +17,7 @@ theorems.rs             the kernels instantiated with the editor
 **Read [`GUARANTEES.md`](GUARANTEES.md)** for exactly what is proved, what is obligated and what is
 trusted. In one line: *if every editor command preserves the document invariant, then every state
 reachable through typing, undo, redo, time travel, stale or hostile clients, and optimistic
-re-basing also satisfies it — by construction* — plus per-command laws such as "Enter never loses a
+re-basing also satisfies it — by construction* — plus per-command laws such as "Enter in a paragraph never loses a
 character" and "Backspace at a block start merges without losing text".
 
 ## Running

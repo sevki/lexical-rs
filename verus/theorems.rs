@@ -67,15 +67,71 @@ pub proof fn typing_with_caret_adds_cs(d: Doc, cs: Seq<Cell>)
     assert(del_sel(d) == d);
 }
 
-/// Enter never loses or duplicates a character and adds exactly one block.
-pub proof fn enter_conserves_text(d: Doc)
-    requires inv(d), d.anchor == d.focus,
+/// Enter in an ordinary block (paragraph, heading, quote, non-empty list item) never
+/// loses or duplicates a character and adds exactly one block.
+pub proof fn enter_in_plain_block_conserves_text(d: Doc)
+    requires
+        inv(d),
+        d.anchor == d.focus,
+        !(d.blocks[d.anchor.block as int].kind is Code),
+        !(d.blocks[d.anchor.block as int].kind is Item && d.blocks[d.anchor.block as int].cells.len() == 0),
     ensures
         chars(enter(d).blocks) == chars(d.blocks),
         enter(d).blocks.len() == d.blocks.len() + 1,
 {
-    enter_inv(d);
     assert(del_sel(d) == d);
+    split_block_inv(d);
+}
+
+/// Enter in a code block inserts exactly one line-break character and no block.
+pub proof fn enter_in_code_inserts_a_line_break(d: Doc)
+    requires
+        inv(d),
+        d.anchor == d.focus,
+        d.blocks[d.anchor.block as int].kind is Code,
+        !is_code_exit(d),
+    ensures
+        chars(enter(d).blocks) == chars(d.blocks) + 1,
+        enter(d).blocks.len() == d.blocks.len(),
+{
+    assert(del_sel(d) == d);
+    insert_inv(d, seq![newline_cell()]);
+    assert(seq![newline_cell()].len() == 1);
+    let r = insert_cells(d, seq![newline_cell()]);
+    assert(r.blocks.len() == d.blocks.len());
+}
+
+/// Double Enter at the end of a code block removes only the trailing line break and
+/// opens one paragraph.
+pub proof fn enter_exits_code_block(d: Doc)
+    requires
+        inv(d),
+        d.anchor == d.focus,
+        is_code_exit(d),
+    ensures
+        chars(enter(d).blocks) + 1 == chars(d.blocks),
+        enter(d).blocks.len() == d.blocks.len() + 1,
+{
+    assert(del_sel(d) == d);
+    exit_code_inv(d);
+}
+
+/// Enter in an empty list item outdents it and changes no characters or blocks.
+pub proof fn enter_on_empty_item_outdents(d: Doc)
+    requires
+        inv(d),
+        d.anchor == d.focus,
+        d.blocks[d.anchor.block as int].kind is Item,
+        d.blocks[d.anchor.block as int].cells.len() == 0,
+    ensures
+        chars(enter(d).blocks) == chars(d.blocks),
+        enter(d).blocks.len() == d.blocks.len(),
+{
+    assert(del_sel(d) == d);
+    let p = d.anchor;
+    let b = d.blocks[p.block as int];
+    outdent_ok(b);
+    chars_update(d.blocks, p.block as int, outdent_block(b));
 }
 
 /// Changing block kind, indenting, outdenting and formatting never add, remove or alter

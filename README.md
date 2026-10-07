@@ -66,6 +66,6 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
   -p lexical-core --test invariants` runs a deeper sweep.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
-* `verus/`: 86 verified items — undo/redo and server-sync kernels, the editor domain's
+* `verus/`: 92 verified items — undo/redo and server-sync kernels, the editor domain's
   invariant and per-command laws, the production-history refinement, reconciler/selection sync.
 * CI (`.github/workflows/ci.yml`) runs all of the above on every PR.

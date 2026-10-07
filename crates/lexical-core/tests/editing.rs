@@ -168,6 +168,82 @@ fn links() {
 }
 
 #[test]
+fn relinking_part_of_a_link_leaves_the_rest_alone() {
+    let mut e = editor_with("abcd");
+    select(&mut e, 0, 4);
+    e.dispatch(Command::ToggleLink(Some("old".into())));
+    select(&mut e, 1, 3);
+    e.dispatch(Command::ToggleLink(Some("new".into())));
+    let l = Layout::build(e.state());
+    let url_at = |off: usize| l.runs.iter().find(|r| r.start <= off && off < r.end).unwrap().link.clone();
+    assert_eq!(url_at(0).as_deref(), Some("old"));
+    assert_eq!(url_at(1).as_deref(), Some("new"));
+    assert_eq!(url_at(2).as_deref(), Some("new"));
+    assert_eq!(url_at(3).as_deref(), Some("old"));
+    e.state().check_invariants().unwrap();
+
+    // removing the link from the middle keeps the ends linked
+    select(&mut e, 1, 3);
+    e.dispatch(Command::ToggleLink(None));
+    let l = Layout::build(e.state());
+    let url_at = |off: usize| l.runs.iter().find(|r| r.start <= off && off < r.end).unwrap().link.clone();
+    assert_eq!(url_at(0).as_deref(), Some("old"));
+    assert_eq!(url_at(1), None);
+    assert_eq!(url_at(2), None);
+    assert_eq!(url_at(3).as_deref(), Some("old"));
+    e.state().check_invariants().unwrap();
+}
+
+#[test]
+fn changing_one_items_list_type_does_not_convert_its_siblings() {
+    let mut e = editor_with("a\nb\nc");
+    e.dispatch(Command::SelectAll);
+    e.dispatch(Command::ToggleList(ListType::Number));
+    select(&mut e, 7, 7); // inside "b"
+    e.dispatch(Command::ToggleList(ListType::Bullet));
+    assert_eq!(Layout::build(e.state()).text, "1. a\n• b\n1. c");
+    e.state().check_invariants().unwrap();
+    // selecting everything and toggling bullets makes one merged bullet list
+    e.dispatch(Command::SelectAll);
+    e.dispatch(Command::ToggleList(ListType::Bullet));
+    assert_eq!(Layout::build(e.state()).text, "• a\n• b\n• c");
+    assert_eq!(e.state().root_children().len(), 1);
+}
+
+#[test]
+fn list_nesting_is_capped() {
+    let mut e = editor_with("deep");
+    e.dispatch(Command::ToggleList(ListType::Bullet));
+    for _ in 0..20 {
+        e.dispatch(Command::Indent);
+        e.state().check_invariants().unwrap();
+    }
+    let l = Layout::build(e.state());
+    let depth = |l: &Layout| match l.lines[0].style {
+        BlockStyle::ListItem { depth, .. } => depth,
+        _ => unreachable!(),
+    };
+    assert_eq!(depth(&l), lexical_core::blocks::MAX_LIST_DEPTH);
+}
+
+#[test]
+fn read_only_editor_ignores_history_and_edits() {
+    let mut e = editor_with("keep");
+    e.dispatch(Command::InsertText("!".into()));
+    assert!(e.can_undo());
+    e.set_editable(false);
+    assert!(!e.dispatch(Command::Undo), "undo must not mutate a read-only editor");
+    assert!(!e.dispatch(Command::Redo));
+    assert!(!e.dispatch(Command::InsertText("x".into())));
+    assert_eq!(lines(&e), ["keep!"]);
+    // selection-only commands still work
+    assert!(e.dispatch(Command::SelectAll));
+    e.set_editable(true);
+    assert!(e.dispatch(Command::Undo));
+    assert_eq!(lines(&e), ["keep"]);
+}
+
+#[test]
 fn enter_inside_link_splits_it() {
     let mut e = editor_with("abcd");
     select(&mut e, 0, 4);
