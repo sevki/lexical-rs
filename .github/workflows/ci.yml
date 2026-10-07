@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  CI: "true"
+
+jobs:
+  core:
+    name: lexical-core (tests, incl. JetStream wire format)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p lexical-core
+      - run: cargo test -p lexical-core --features jetstream
+
+  gtk:
+    name: lexical-adw (GTK4 / libadwaita, headless)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install GNOME dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libadwaita-1-dev libgtk-4-dev xvfb dbus dbus-x11 \
+            adwaita-icon-theme librsvg2-common
+      # GTK needs a display and a session bus; see
+      # https://pygobject.gnome.org/guide/testing.html for the same recipe.
+      # The test binary has `harness = false` so GTK stays on the main thread.
+      - name: Test under Xvfb + a private D-Bus session
+        run: xvfb-run -a dbus-run-session -- cargo test -p lexical-adw
+      - name: Build the demo
+        run: cargo build -p lexical-adw --examples
+      - name: Smoke-launch the demo for a few seconds
+        run: |
+          xvfb-run -a dbus-run-session -- bash -c '
+            cargo run -q -p lexical-adw --example demo & pid=$!
+            sleep 8
+            kill -0 $pid   # still running: it did not crash on startup
+            kill $pid'
+
+  verus:
+    name: Verus proofs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Verus (latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo verus-lang/verus --pattern 'verus-*-x86-linux.zip' --dir "$RUNNER_TEMP/verus-dl"
+          unzip -q "$RUNNER_TEMP"/verus-dl/*.zip -d "$HOME/verus"
+          VERUS_BIN="$(find "$HOME/verus" -name verus -type f -perm -u+x | head -1)"
+          echo "VERUS=$VERUS_BIN" >> "$GITHUB_ENV"
+          # Verus pins its own rustc; install exactly the toolchain it asks for.
+          TOOLCHAIN="$("$VERUS_BIN" --version --output-json | jq -r '.verus.toolchain')"
+          rustup toolchain install "$TOOLCHAIN" --profile minimal
+      - run: verus/verify.sh

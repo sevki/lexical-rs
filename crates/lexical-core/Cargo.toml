@@ -1,0 +1,18 @@
+[package]
+name = "lexical-core"
+description = "Toolkit-agnostic port of the Lexical (iOS) rich text editor engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bitflags.workspace = true
+serde_json.workspace = true
+unicode-segmentation.workspace = true
+jetstream_wireformat = { version = "16.3.1", optional = true }
+
+[features]
+default = []
+# Binary (de)serialization of documents via https://jetstream.rs wire format.
+jetstream = ["dep:jetstream_wireformat"]
