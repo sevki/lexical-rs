@@ -1,7 +1,7 @@
 //! The update pipeline: run a closure against a pending copy of the state, settle
 //! node transforms, normalize, commit, then notify listeners.
 
-use super::{Editor, Tag, UpdateEvent};
+use super::{CommitInfo, Editor, Tag, UpdateEvent};
 use crate::error::{Error, Result};
 use crate::history::ChangeKind;
 use crate::node::*;
@@ -70,7 +70,16 @@ impl Editor {
             dirty.iter().copied().filter(|k| prev.contains(*k) && !self.state.contains(*k)).collect();
         self.state.dirty.clear();
 
-        if content && !tags.contains(&Tag::Historic) {
+        let mut hooks = std::mem::take(&mut self.commit_hooks);
+        let info = CommitInfo { prev: &prev, state: &self.state, tags, content_changed: content };
+        for (_, h) in hooks.iter_mut() {
+            h(&info);
+        }
+        hooks.append(&mut self.commit_hooks);
+        self.commit_hooks = hooks;
+
+        let recorded = !tags.contains(&Tag::Historic) && !tags.contains(&Tag::Remote);
+        if content && recorded && self.history_provider.is_none() {
             let kind = tags
                 .iter()
                 .find_map(|t| if let Tag::Kind(k) = t { Some(*k) } else { None })
@@ -94,8 +103,8 @@ impl Editor {
             created: &created,
             destroyed: &destroyed,
             tags: &tags_v,
-            can_undo: self.history.can_undo(),
-            can_redo: self.history.can_redo(),
+            can_undo: self.can_undo(),
+            can_redo: self.can_redo(),
         };
         for (_, l) in listeners.iter_mut() {
             l(&ev);
@@ -117,6 +126,17 @@ impl Editor {
         state.dirty = state.nodes.keys().copied().collect();
         self.history.clear();
         self.commit(state, &[Tag::Historic]);
+    }
+
+    /// Replace the document with one produced outside the local edit stream (a remote
+    /// peer's change, an external undo). Not recorded in history, bypasses transforms,
+    /// and is tagged [`Tag::Remote`] so hooks and listeners can tell it apart. The
+    /// editor's limits carry over; the caller supplies the selection.
+    pub fn apply_remote(&mut self, mut state: EditorState) {
+        state.limits = self.state.limits;
+        state.validate_selection();
+        state.dirty = state.nodes.keys().copied().collect();
+        self.commit(state, &[Tag::Remote]);
     }
 
     /// Update only the selection (e.g. from the view), without touching history.

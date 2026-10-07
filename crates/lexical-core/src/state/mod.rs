@@ -148,6 +148,18 @@ impl EditorState {
         }
     }
 
+    /// Forget which nodes changed; for code that builds a whole document outside an update.
+    pub fn clear_dirty(&mut self) {
+        self.dirty.clear();
+    }
+
+    /// Set the alignment and indent level of an element node.
+    pub fn set_element_attrs(&mut self, key: NodeKey, align: Align, indent: u32) {
+        let node = self.node_mut(key);
+        node.align = align;
+        node.indent = indent;
+    }
+
     pub fn dirty_nodes(&self) -> impl Iterator<Item = NodeKey> + '_ {
         self.dirty.iter().copied().filter(|k| self.nodes.contains_key(k))
     }

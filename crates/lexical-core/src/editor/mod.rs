@@ -28,7 +28,20 @@ pub enum Tag {
     HistoryPush,
     /// Only the selection changed.
     SelectionOnly,
+    /// The document was replaced from outside the local edit stream (a remote peer's
+    /// change, or an undo performed by an external history). Never recorded in the
+    /// built-in history.
+    Remote,
     Kind(ChangeKind),
+}
+
+/// What a commit hook sees: the transition, before listeners are notified.
+pub struct CommitInfo<'a> {
+    pub prev: &'a EditorState,
+    pub state: &'a EditorState,
+    pub tags: &'a [Tag],
+    /// True when nodes (not just the selection) changed.
+    pub content_changed: bool,
 }
 
 pub struct UpdateEvent<'a> {
@@ -57,8 +70,11 @@ impl UpdateEvent<'_> {
 pub struct ListenerId(u64);
 
 type UpdateListener = Box<dyn FnMut(&UpdateEvent)>;
+type CommitHook = Box<dyn FnMut(&CommitInfo)>;
 type CommandHandler = Box<dyn FnMut(&mut Editor, &Command) -> bool>;
 type Transform = Box<dyn Fn(&mut EditorState, NodeKey) -> Result<()>>;
+/// Reports `(can_undo, can_redo)` for an external history (e.g. a collaborative one).
+type HistoryProvider = Box<dyn Fn() -> (bool, bool)>;
 
 /// Extension point mirroring Lexical iOS's `Plugin` protocol.
 pub trait Plugin {
@@ -69,9 +85,11 @@ pub trait Plugin {
 pub struct Editor {
     state: EditorState,
     update_listeners: Vec<(ListenerId, UpdateListener)>,
+    commit_hooks: Vec<(ListenerId, CommitHook)>,
     command_handlers: Vec<(i32, ListenerId, CommandHandler)>,
     transforms: HashMap<NodeType, Vec<(ListenerId, Transform)>>,
     history: History,
+    history_provider: Option<HistoryProvider>,
     editable: bool,
     next_id: u64,
     plugins: Vec<Box<dyn Plugin>>,
@@ -92,9 +110,11 @@ impl Editor {
         Editor {
             state,
             update_listeners: vec![],
+            commit_hooks: vec![],
             command_handlers: vec![],
             transforms: HashMap::new(),
             history: History::default(),
+            history_provider: None,
             editable: true,
             next_id: 1,
             plugins: vec![],
@@ -141,6 +161,24 @@ impl Editor {
         id
     }
 
+    /// Runs on every commit after the new state is in place and *before* listeners are
+    /// notified, so a hook can bring external state (a CRDT, a journal) up to date first.
+    pub fn register_commit_hook(&mut self, f: impl FnMut(&CommitInfo) + 'static) -> ListenerId {
+        let id = self.fresh_id();
+        self.commit_hooks.push((id, Box::new(f)));
+        id
+    }
+
+    /// Route undo/redo availability to an external history. While set, the built-in
+    /// history records nothing (a snapshot undo would also revert other peers' edits);
+    /// the host intercepts `Command::Undo`/`Redo` with a command handler.
+    pub fn set_history_provider(&mut self, provider: Option<impl Fn() -> (bool, bool) + 'static>) {
+        self.history_provider = provider.map(|p| Box::new(p) as HistoryProvider);
+        if self.history_provider.is_some() {
+            self.history.clear();
+        }
+    }
+
     /// Higher priority handlers run first; the first to return `true` consumes the command.
     pub fn register_command(
         &mut self,
@@ -165,6 +203,7 @@ impl Editor {
 
     pub fn unregister(&mut self, id: ListenerId) {
         self.update_listeners.retain(|(i, _)| *i != id);
+        self.commit_hooks.retain(|(i, _)| *i != id);
         self.command_handlers.retain(|(_, i, _)| *i != id);
         for v in self.transforms.values_mut() {
             v.retain(|(i, _)| *i != id);

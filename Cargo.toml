@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/lexical-core", "crates/lexical-adw"]
+members = ["crates/lexical-core", "crates/lexical-adw", "crates/lexical-sync"]
 
 [workspace.package]
 version = "0.1.0"

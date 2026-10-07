@@ -87,6 +87,21 @@ impl EditorState {
 
     fn check_children_kinds(&self, k: NodeKey) -> Result<(), String> {
         let n = self.node(k);
+        let is_wrapper = |c: NodeKey| {
+            self.node(c).node_type() == NodeType::ListItem
+                && self.node(c).children.iter().any(|&g| self.node(g).node_type() == NodeType::List)
+        };
+        for w in n.children.windows(2) {
+            match (&self.node(w[0]).data, &self.node(w[1]).data) {
+                (NodeData::List { list_type: a, .. }, NodeData::List { list_type: b, .. }) if a == b => {
+                    return Err(format!("adjacent {} lists {} {} should be one", a.as_str(), w[0], w[1]));
+                }
+                (NodeData::ListItem { .. }, NodeData::ListItem { .. }) if is_wrapper(w[0]) && is_wrapper(w[1]) => {
+                    return Err(format!("adjacent nesting wrappers {} {} should be one", w[0], w[1]));
+                }
+                _ => {}
+            }
+        }
         let kinds = |pred: &dyn Fn(NodeType) -> bool, what: &str| -> Result<(), String> {
             for &c in &n.children {
                 let t = self.node(c).node_type();
@@ -99,7 +114,22 @@ impl EditorState {
         use NodeType::*;
         match n.node_type() {
             Root => kinds(&|t| matches!(t, Paragraph | Heading | Quote | Code | List), "root holds blocks"),
-            List => kinds(&|t| t == ListItem, "list holds items"),
+            List => {
+                kinds(&|t| t == ListItem, "list holds items")?;
+                let is_check = matches!(n.data, NodeData::List { list_type: ListType::Check, .. });
+                for &c in &n.children {
+                    let item = self.node(c);
+                    let wrapper = item.children.iter().any(|&g| self.node(g).node_type() == List);
+                    let checked = matches!(item.data, NodeData::ListItem { checked: Some(_) });
+                    if checked != (is_check && !wrapper) {
+                        return Err(format!(
+                            "list item {c} has checked state {checked} inside a {} list",
+                            if is_check { "check" } else { "non-check" }
+                        ));
+                    }
+                }
+                Ok(())
+            }
             ListItem => {
                 let nested = n.children.iter().filter(|&&c| self.node(c).node_type() == List).count();
                 if nested > 0 && nested != n.children.len() {

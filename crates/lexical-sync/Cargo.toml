@@ -1,0 +1,12 @@
+[package]
+name = "lexical-sync"
+description = "Collaborative editing for lexical-core on top of the Loro CRDT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lexical-core = { path = "../lexical-core" }
+loro = "1.16"
+serde_json.workspace = true

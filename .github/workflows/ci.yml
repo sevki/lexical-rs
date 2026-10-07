@@ -26,6 +26,17 @@ jobs:
       - run: cargo test -p lexical-core
       - run: cargo test -p lexical-core --features jetstream
 
+  sync:
+    name: lexical-sync (Loro CRDT, concurrent-edit convergence + fuzz)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p lexical-sync
+      - name: Deeper randomised sessions
+        run: LEXICAL_FUZZ_SEEDS=200 cargo test --release -p lexical-sync --test fuzz
+
   gtk:
     name: lexical-adw (GTK4 / libadwaita, headless)
     runs-on: ubuntu-24.04

@@ -117,5 +117,11 @@ Not proved, even though the models are meant to mirror the code:
   Unicode grapheme/word segmentation, `serde_json`, the JetStream wire format, GTK/libadwaita,
   input methods, the clipboard, and the Verus/Z3 toolchain.
 * Liveness, ordering/delivery of messages, persistence, and authentication.
+* **Peer-to-peer convergence (`lexical-sync`).** Convergence of concurrent edits is the
+  guarantee of the Loro CRDT and is trusted. What this repository adds is tested, not proved:
+  the flat↔tree mapping is total and `unflatten` always yields a state passing
+  `check_invariants` (`tests/flat.rs`), and randomised multi-peer sessions with lossy-order
+  delivery end in identical documents (`tests/convergence.rs`, `tests/fuzz.rs`). A Verus model
+  of the flat↔tree totality is a possible next step.
 * Multi-client conflict resolution beyond reject-and-resync (dafny-replay's multi-collaboration
   kernel with rebasing and "intent envelopes") is **not** modelled yet.

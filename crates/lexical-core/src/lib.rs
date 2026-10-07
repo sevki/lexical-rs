@@ -22,12 +22,13 @@ pub mod state;
 pub mod wire;
 
 pub use blocks::BlockType;
-pub use editor::{Command, Editor, ListenerId, Plugin, Tag, UpdateEvent};
+pub use content::{BlockContent, Piece};
+pub use editor::{Command, CommitInfo, Editor, ListenerId, Plugin, Tag, UpdateEvent};
 pub use error::{Error, Result};
 pub use format::{Align, TextFormat};
 pub use layout::{BlockStyle, Layout, Line, Run};
 pub use limits::Limits;
 pub use markdown::MarkdownShortcutsPlugin;
-pub use node::{HeadingTag, ListType, Node, NodeData, NodeKey, NodeType, ROOT_KEY};
+pub use node::{HeadingTag, ListType, Node, NodeData, NodeKey, NodeType, TextMode, ROOT_KEY};
 pub use selection::{Point, PointKind, Selection};
 pub use state::EditorState;
