@@ -4,10 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+    # labeled/unlabeled: adding `visual-change` re-evaluates the visual regression job
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 env:
   CARGO_TERM_COLOR: always
   CI: "true"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   core:
@@ -46,6 +52,71 @@ jobs:
             sleep 8
             kill -0 $pid   # still running: it did not crash on startup
             kill $pid'
+
+  visual:
+    name: Visual regression (base vs PR head)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    env:
+      # Same display stack for both renders; DejaVu keeps text metrics stable.
+      GSK_RENDERER: cairo
+      GDK_BACKEND: x11
+      GTK_A11Y: none
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install GNOME dependencies and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libadwaita-1-dev libgtk-4-dev xvfb dbus dbus-x11 \
+            adwaita-icon-theme librsvg2-common fonts-dejavu-core
+      - name: Render the PR head
+        run: |
+          xvfb-run -a dbus-run-session -- \
+            cargo run --release -q -p lexical-adw --example visual -- render "$RUNNER_TEMP/visual/head"
+      - name: Render the base branch
+        id: base
+        run: |
+          git worktree add "$RUNNER_TEMP/base-src" "origin/${{ github.base_ref }}"
+          if [ -f "$RUNNER_TEMP/base-src/crates/lexical-adw/examples/visual.rs" ]; then
+            # Use the base's own tool so the baseline is exactly what the base would draw.
+            (cd "$RUNNER_TEMP/base-src" && CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target-base" \
+              xvfb-run -a dbus-run-session -- \
+              cargo run --release -q -p lexical-adw --example visual -- render "$RUNNER_TEMP/visual/base")
+            echo "has_baseline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Compare
+        id: compare
+        if: steps.base.outputs.has_baseline == 'true'
+        # An intentional UI change is acknowledged with the `visual-change` label.
+        continue-on-error: ${{ contains(github.event.pull_request.labels.*.name, 'visual-change') }}
+        run: |
+          set +e
+          xvfb-run -a dbus-run-session -- \
+            cargo run --release -q -p lexical-adw --example visual -- compare \
+            "$RUNNER_TEMP/visual/base" "$RUNNER_TEMP/visual/head" "$RUNNER_TEMP/visual/diff" "$RUNNER_TEMP/report.md"
+          status=$?
+          {
+            echo "### Visual regression"
+            cat "$RUNNER_TEMP/report.md"
+            [ "$status" -ne 0 ] && echo && echo "Differences found. Download the \`visual\` artifact to see base, head and diff images. If the change is intended, add the \`visual-change\` label."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - name: Note when there is nothing to compare against
+        if: steps.base.outputs.has_baseline == 'false'
+        run: echo "### Visual regression" >> "$GITHUB_STEP_SUMMARY" && echo "The base branch has no visual tool yet, so there is nothing to compare. The head renders are attached as an artifact." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual
+          path: ${{ runner.temp }}/visual
+          if-no-files-found: ignore
 
   verus:
     name: Verus proofs

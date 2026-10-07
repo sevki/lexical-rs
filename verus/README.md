@@ -4,10 +4,10 @@ Modelled on [dafny-replay](https://github.com/metareflection/dafny-replay): **ve
 proved once, plugged into a domain that owes only a small set of obligations.**
 
 ```text
-Domain (Doc, Cmd, Inv, Init, Apply, Normalize)      domains/editor.rs     <- obligations R1, R2
+Domain (Doc, Cmd, Inv, Init, Apply, Normalize)      domains/editor/       <- obligations R1, R2
         |  plugged into
-Replay kernel     History = {past, present, future}  kernels/replay.rs     <- undo/redo for ANY domain
-Authority kernel  Server  = {version, present, log}  kernels/authority.rs  <- sync for ANY domain
+Replay kernel     History = {past, present, future}  kernels/replay/       <- undo/redo for ANY domain
+Authority kernel  Server  = {version, present, log}  kernels/authority/    <- server-authoritative sync
         |  refined by / bridged to production
 production_history.rs   abs(History in lexical-core) = kernel History
 bridge/                 reconciler diff, selection offset mapping, split_text remap

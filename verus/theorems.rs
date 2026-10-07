@@ -1,6 +1,6 @@
 //! The kernels instantiated with the Lexical editor domain: what users and the sync
 //! protocol are guaranteed. Everything here is a corollary of the generic kernel
-//! theorems plus the editor's domain obligations (`domains/editor.rs`).
+//! theorems plus the editor's domain obligations (`domains/editor/`).
 use crate::domains::editor::*;
 use crate::kernels::authority::*;
 use crate::kernels::replay::*;

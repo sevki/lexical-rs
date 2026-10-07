@@ -10,13 +10,13 @@ Verified with `verus/verify.sh`: **92 verified, 0 errors** (Verus rolling releas
 
 ## Notation
 
-* `Model` = `Doc`, `Action` = `Cmd` (see `domains/editor.rs`)
+* `Model` = `Doc`, `Action` = `Cmd` (see `domains/editor/`)
 * `Inv : Doc → bool` — the document invariant
 * `Init()` — one empty paragraph, caret inside it
 * `Step(m, a) = Normalize(Apply(m, a))`
 * `History = { past, present, future }`, `Server = { version, present, log }`
 
-## Replay kernel — `kernels/replay.rs`
+## Replay kernel — `kernels/replay/`
 
 ### Domain obligations
 
@@ -42,7 +42,7 @@ both `commit` modes (merge / push, bounded) map to the corresponding kernel oper
 `abs`, and `undo.len + redo.len ≤ limit` is invariant. So RK1–RK4 hold for the production
 history *as modelled*.
 
-## Authority kernel (sync) — `kernels/authority.rs`
+## Authority kernel (server-authoritative sync) — `kernels/authority/`
 
 ### Domain obligations
 
@@ -60,14 +60,15 @@ history *as modelled*.
 * (AK6) Optimistic clients: what the user sees (server base + pending local actions) always
   satisfies `Inv` after local edits, acknowledgements and re-basing onto a fresh server state
 
-## Editor domain — `domains/editor.rs`, `theorems.rs`
+## Editor domain — `domains/editor/`, `theorems.rs`
 
 Obligations R1 and R2 are discharged for all ten commands (insert, enter, backspace, forward
 delete, set block kind, indent, outdent, format, select, select-all). `Inv`:
 
-* at least one block; every block kind in range (heading 1–6, list type ≤ 2, depth ≤ 8) and
-  indent ≤ 10. The bounds are real limits in production (`MAX_LIST_DEPTH`, `MAX_INDENT` in
-  `blocks.rs`), enforced by `Indent`; imported documents are not clamped to them yet.
+* at least one block; every block kind in range (heading level 1–6, list type 0–2). Indentation
+  and list nesting are **unbounded**, as in production by default; the optional host caps
+  (`lexical_core::Limits`) only turn `Indent` into a no-op at the cap, which no stated property
+  depends on (the caps themselves are covered by tests, not modelled).
 * anchor and focus point inside the document (block exists, offset ≤ block length) —
   `Normalize` is the model of `EditorState::validate_selection`, run on every commit
 

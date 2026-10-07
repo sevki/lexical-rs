@@ -210,20 +210,45 @@ fn changing_one_items_list_type_does_not_convert_its_siblings() {
     assert_eq!(e.state().root_children().len(), 1);
 }
 
+fn first_item_depth(e: &Editor) -> u32 {
+    match Layout::build(e.state()).lines[0].style {
+        BlockStyle::ListItem { depth, .. } => depth,
+        _ => unreachable!(),
+    }
+}
+
 #[test]
-fn list_nesting_is_capped() {
+fn list_nesting_is_unlimited_by_default() {
     let mut e = editor_with("deep");
     e.dispatch(Command::ToggleList(ListType::Bullet));
     for _ in 0..20 {
         e.dispatch(Command::Indent);
         e.state().check_invariants().unwrap();
     }
-    let l = Layout::build(e.state());
-    let depth = |l: &Layout| match l.lines[0].style {
-        BlockStyle::ListItem { depth, .. } => depth,
-        _ => unreachable!(),
-    };
-    assert_eq!(depth(&l), lexical_core::blocks::MAX_LIST_DEPTH);
+    assert_eq!(first_item_depth(&e), 20);
+}
+
+#[test]
+fn list_nesting_and_indent_can_be_capped_by_the_host() {
+    let mut e = editor_with("deep");
+    e.set_limits(Limits { max_list_depth: Some(3), max_indent: Some(2) });
+    e.dispatch(Command::ToggleList(ListType::Bullet));
+    for _ in 0..10 {
+        e.dispatch(Command::Indent);
+    }
+    assert_eq!(first_item_depth(&e), 3);
+
+    // plain blocks honour max_indent, and the cap survives loading a document
+    let mut p = editor_with("para");
+    p.set_limits(Limits { max_list_depth: None, max_indent: Some(2) });
+    for _ in 0..10 {
+        p.dispatch(Command::Indent);
+    }
+    let json = p.state().to_json();
+    assert_eq!(json["root"]["children"][0]["indent"], 2);
+    p.set_state(EditorState::from_json(&json).unwrap());
+    p.dispatch(Command::Indent);
+    assert_eq!(p.state().to_json()["root"]["children"][0]["indent"], 2);
 }
 
 #[test]

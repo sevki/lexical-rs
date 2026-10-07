@@ -66,6 +66,12 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
   -p lexical-core --test invariants` runs a deeper sweep.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
+* Visual regression (PRs only): CI renders fixed editor scenarios (formats, headings, lists,
+  selection + toolbar) offscreen for the **base branch and the PR head in the same job** and
+  diffs them, so there are no committed baselines to go stale. Differences fail the job, with
+  base / head / red-overlay diff images in the `visual` artifact; add the `visual-change` label
+  to accept an intentional UI change. Run it locally with
+  `xvfb-run -a dbus-run-session -- cargo run -p lexical-adw --example visual -- render out/`.
 * `verus/`: 92 verified items — undo/redo and server-sync kernels, the editor domain's
   invariant and per-command laws, the production-history refinement, reconciler/selection sync.
 * CI (`.github/workflows/ci.yml`) runs all of the above on every PR.

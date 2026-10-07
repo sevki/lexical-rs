@@ -1,5 +1,5 @@
 //! Refinement of the production history (`crates/lexical-core/src/{history,editor}.rs`)
-//! to the proven replay kernel (`kernels/replay.rs`).
+//! to the proven replay kernel (`kernels/replay/`).
 //!
 //! Production keeps the *present* in `Editor::state` and two stacks in `History`:
 //! `undo` (oldest first, newest last) and `redo` (a stack: newest *undone* state last).

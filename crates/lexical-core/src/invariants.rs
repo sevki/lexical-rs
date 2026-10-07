@@ -1,5 +1,5 @@
 //! Runtime check of the document invariants. These are the executable counterpart of
-//! `Inv` in the Verus editor domain (`verus/domains/editor.rs`): every committed state
+//! `Inv` in the Verus editor domain (`verus/domains/editor/`): every committed state
 //! must satisfy them, whatever sequence of commands, undo/redo and loads produced it.
 
 use crate::node::*;
