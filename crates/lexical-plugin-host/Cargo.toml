@@ -10,3 +10,7 @@ repository.workspace = true
 lexical-core = { path = "../lexical-core" }
 wasmtime = { version = "49", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
 wasmtime-wasi = "49"
+
+[dev-dependencies]
+# random commands and a seedable generator for the trace test
+lexical-sync = { path = "../lexical-sync" }

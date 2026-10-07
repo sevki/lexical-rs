@@ -3,7 +3,7 @@
 //! The guest is built on first use (`cargo build --target wasm32-wasip2`), so these tests
 //! need that target: `rustup target add wasm32-wasip2`.
 
-use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType, MarkdownShortcutsPlugin};
+use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType};
 use lexical_plugin_host::{Budget, PluginError, WasmPlugin};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
@@ -62,18 +62,50 @@ fn typing_a_markdown_prefix_makes_the_block() {
 }
 
 #[test]
-fn the_component_and_the_native_plugin_agree() {
-    let inputs = ["# a", "###### six", "> quote", "``` code", "- x", "* y", "[ ] todo", "1. one", "#no space", "a # b", "  # indented"];
-    for input in inputs {
-        let mut native = Editor::new();
-        native.add_plugin(Box::new(MarkdownShortcutsPlugin::default()));
-        let mut wasm = Editor::new();
-        wasm.add_plugin(Box::new(plugin()));
-        type_str(&mut native, input);
-        type_str(&mut wasm, input);
-        assert_eq!(wasm.state().to_json(), native.state().to_json(), "typing {input:?}");
-        wasm.state().check_invariants().unwrap();
+fn every_shortcut_makes_its_block_and_leaves_the_rest_of_the_text() {
+    use BlockStyle::*;
+    type Case = (&'static str, fn(&BlockStyle) -> bool, &'static str);
+    let cases: [Case; 11] = [
+        ("# a", |s| matches!(s, Heading(HeadingTag::H1)), "a"),
+        ("###### six", |s| matches!(s, Heading(HeadingTag::H6)), "six"),
+        ("> quote", |s| matches!(s, Quote), "quote"),
+        ("``` code", |s| matches!(s, Code), "code"),
+        ("- x", |s| matches!(s, ListItem { list_type: ListType::Bullet, .. }), "x"),
+        ("* y", |s| matches!(s, ListItem { list_type: ListType::Bullet, .. }), "y"),
+        ("[ ] todo", |s| matches!(s, ListItem { list_type: ListType::Check, .. }), "todo"),
+        ("1. one", |s| matches!(s, ListItem { list_type: ListType::Number, .. }), "one"),
+        // not shortcuts: no space after the marker, or not at the start of the paragraph
+        ("#no space", |s| matches!(s, Paragraph), "#no space"),
+        ("a # b", |s| matches!(s, Paragraph), "a # b"),
+        ("  # indented", |s| matches!(s, Paragraph), "  # indented"),
+    ];
+    for (input, is_block, text) in cases {
+        let mut e = Editor::new();
+        e.add_plugin(Box::new(plugin()));
+        type_str(&mut e, input);
+        assert!(is_block(&styles(&e)[0]), "typing {input:?}: {:?}", styles(&e));
+        assert_eq!(texts(&e), [text], "typing {input:?}");
+        e.state().check_invariants().unwrap();
     }
+}
+
+#[test]
+fn random_editing_with_the_plugin_keeps_the_document_valid() {
+    use lexical_sync::testing::{random_command, random_selection, Rng};
+    let mut e = Editor::new();
+    let p = plugin();
+    let errors = p.errors();
+    e.add_plugin(Box::new(p));
+    let mut r = Rng::new(11);
+    for step in 0..400 {
+        if r.chance(5) {
+            random_selection(&mut e, &mut r);
+        } else {
+            e.dispatch(random_command(&mut r));
+        }
+        e.state().check_invariants().unwrap_or_else(|m| panic!("step {step}: {m}"));
+    }
+    assert!(errors.borrow().is_empty(), "{:?}", errors.borrow());
 }
 
 #[test]

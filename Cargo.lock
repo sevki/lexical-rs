@@ -1622,6 +1622,7 @@ version = "0.1.0"
 dependencies = [
  "gtk4",
  "lexical-core",
+ "lexical-plugin-host",
  "libadwaita",
 ]
 
@@ -1647,6 +1648,7 @@ name = "lexical-plugin-host"
 version = "0.1.0"
 dependencies = [
  "lexical-core",
+ "lexical-sync",
  "wasmtime",
  "wasmtime-wasi",
 ]

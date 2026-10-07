@@ -15,6 +15,11 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 
 ```sh
 cargo run -p lexical-adw --example demo     # needs libadwaita >= 1.5 (libadwaita-1-dev)
+cargo test -p lexical-plugin-host           # plugin components (needs: rustup target add wasm32-wasip2)
+# demo with the markdown shortcuts plugin:
+(cd plugins/markdown-shortcuts && cargo build --release --target wasm32-wasip2)
+LEXICAL_PLUGINS=plugins/markdown-shortcuts/target/wasm32-wasip2/release/markdown_shortcuts.wasm \
+  cargo run -p lexical-adw --features plugins --example demo
 cargo test -p lexical-core                  # engine tests
 cargo test -p lexical-core --features jetstream
 xvfb-run -a dbus-run-session -- cargo test -p lexical-adw   # headless GTK tests
@@ -29,7 +34,7 @@ verus/verify.sh                             # proofs (needs Verus)
 | `EditorState`, `Node`, `NodeKey` | `EditorState` arena (`HashMap<NodeKey, Node>`); `NodeData` enum: root, paragraph, heading, quote, code, list, listitem, link, text, linebreak |
 | `RangeSelection`, `Point` | `Selection`, `Point` (`Text` / `Element` kinds), pending `format` for the next typed text |
 | `registerUpdateListener` / `registerCommand` / `registerNodeTransform` | `register_update_listener` / `register_command(priority, ..)` / `register_node_transform` |
-| `Plugin` | `Plugin` trait (+ `MarkdownShortcutsPlugin`: `# `, `> `, `- `, `1. `, `[ ] `, ```` ``` ```` ) |
+| `Plugin` | WIT component implementing `lexical:editor/plugin` (see `lexical-plugin`), run by `lexical-plugin-host`. The markdown shortcuts (`# `, `> `, `- `, `1. `, `[ ] `, ```` ``` ````) are `plugins/markdown-shortcuts`. |
 | `HistoryPlugin` | built-in `History` with typing/deletion coalescing |
 | `Reconciler` + `RangeCache` | `Layout` (flat text, line styles, runs, `offset_of` / `point_at`) + `lexical_adw::reconciler` (minimal text diff + `GtkTextTag`s) |
 | `TextView` + `insertText`/`deleteBackward` overrides | `LexicalView`: a read-only `GtkTextView`; all edits come in through `IMMulticontext` commits, key bindings, toolbar and clipboard as `Command`s |
@@ -82,8 +87,9 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
   `LEXICAL_FUZZ_SEEDS=500 cargo test --release -p lexical-sync --test fuzz` goes deeper.
 * `lexical-plugin-host`: builds the real `markdown-shortcuts` component
   (`rustup target add wasm32-wasip2`), loads it into an editor, checks it produces the same
-  documents as the native markdown plugin for a set of inputs, and checks that bad bytes, a
-  starved fuel budget and a tiny memory cap are refused without harming the editor.
+  expected blocks for every shortcut (and none for near misses), runs hundreds of random
+  commands with it loaded checking document invariants, and checks that bad bytes, a starved
+  fuel budget and a tiny memory cap are refused without harming the editor.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
 * Visual regression (PRs only): CI renders fixed editor scenarios (formats, headings, lists,
