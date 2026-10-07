@@ -14,25 +14,16 @@ verus! {
 fn prefix_len(old: &Vec<u32>, new: &Vec<u32>) -> (p: usize)
     ensures
         p <= old.len(), p <= new.len(),
-        old@.subrange(0, p as int) =~= new@.subrange(0, p as int),
+        forall|k: int| 0 <= k < p ==> old@[k] == new@[k],
         p == old.len() || p == new.len() || old@[p as int] != new@[p as int],
 {
     let mut i: usize = 0;
     while i < old.len() && i < new.len() && old[i] == new[i]
         invariant
             i <= old.len(), i <= new.len(),
-            old@.subrange(0, i as int) =~= new@.subrange(0, i as int),
+            forall|k: int| 0 <= k < i ==> old@[k] == new@[k],
         decreases old.len() - i,
     {
-        proof {
-            assert(old@.subrange(0, (i + 1) as int) =~= new@.subrange(0, (i + 1) as int)) by {
-                assert forall|k: int| 0 <= k < i + 1 implies old@.subrange(0, (i + 1) as int)[k] == new@.subrange(0, (i + 1) as int)[k] by {
-                    if k < i {
-                        assert(old@.subrange(0, i as int)[k] == new@.subrange(0, i as int)[k]);
-                    }
-                }
-            }
-        }
         i += 1;
     }
     i
@@ -43,14 +34,14 @@ fn suffix_len(old: &Vec<u32>, new: &Vec<u32>, max: usize) -> (s: usize)
     requires max <= old.len(), max <= new.len(),
     ensures
         s <= max,
-        forall|k: int| 0 <= k < s ==> old@[old.len() - 1 - k] == new@[new.len() - 1 - k],
+        forall|k: int| 0 <= k < s ==> #[trigger] old@[old.len() - 1 - k] == new@[new.len() - 1 - k],
         s == max || old@[old.len() - 1 - s] != new@[new.len() - 1 - s],
 {
     let mut s: usize = 0;
     while s < max && old[old.len() - 1 - s] == new[new.len() - 1 - s]
         invariant
             s <= max, max <= old.len(), max <= new.len(),
-            forall|k: int| 0 <= k < s ==> old@[old.len() - 1 - k] == new@[new.len() - 1 - k],
+            forall|k: int| 0 <= k < s ==> #[trigger] old@[old.len() - 1 - k] == new@[new.len() - 1 - k],
         decreases max - s,
     {
         s += 1;
@@ -84,9 +75,10 @@ pub fn minimal_edit(old: &Vec<u32>, new: &Vec<u32>) -> (r: (usize, usize, usize)
             let lhs = old@.subrange(0, p as int) + new@.subrange(p as int, new_end as int)
                 + old@.subrange(old_end as int, ol as int);
             assert(lhs.len() == nl);
-            assert forall|k: int| 0 <= k < nl implies lhs[k] == new@[k] by {
+            assert forall|k: int| 0 <= k < nl implies #[trigger] lhs[k] == new@[k] by {
                 if k < p {
                     assert(lhs[k] == old@[k]);
+                    assert(old@[k] == new@[k]);
                 } else if k < new_end {
                     assert(lhs[k] == new@[k]);
                 } else {

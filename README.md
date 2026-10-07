@@ -8,7 +8,7 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 |---|---|
 | [`lexical-core`](crates/lexical-core) | Toolkit-agnostic engine: node tree, `EditorState`, range selection, update pipeline, node transforms, listeners, commands, history, Lexical JSON, flattened `Layout`. No GTK dependency. |
 | [`lexical-adw`](crates/lexical-adw) | GTK4 / libadwaita views: `LexicalView` (editing surface), `Toolbar`, buffer reconciler, and a demo app. |
-| [`verus/`](verus) | Formal proofs (Verus) of the history, reconciler-diff, selection-sync and text-split algorithms. |
+| [`verus/`](verus) | Formal proofs (Verus) in the style of [dafny-replay](https://github.com/metareflection/dafny-replay): generic **replay** (undo/redo) and **authority** (sync) kernels proved once, the editor as a domain with proved invariants and per-command laws, plus proofs for the view-sync algorithms. See [`verus/GUARANTEES.md`](verus/GUARANTEES.md). |
 
 ```sh
 cargo run -p lexical-adw --example demo     # needs libadwaita >= 1.5 (libadwaita-1-dev)
@@ -58,7 +58,14 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
 
 ## Testing
 
-* `lexical-core`: 21 integration tests (+4 wire-format tests with `--features jetstream`).
+* `lexical-core`: 21 behaviour tests, 3 randomized trace tests, and 4 wire-format tests
+  (`--features jetstream`). The trace tests run hundreds of random command / selection /
+  undo / redo / reload sequences and assert `EditorState::check_invariants()` (tree shape,
+  node nesting, normalization, selection validity) after every step; they found three real
+  bugs while the proofs were being written. `LEXICAL_FUZZ_SEEDS=5000 cargo test --release
+  -p lexical-core --test invariants` runs a deeper sweep.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
-* CI (`.github/workflows/ci.yml`) runs all of the above plus the Verus proofs, on every PR.
+* `verus/`: 86 verified items — undo/redo and server-sync kernels, the editor domain's
+  invariant and per-command laws, the production-history refinement, reconciler/selection sync.
+* CI (`.github/workflows/ci.yml`) runs all of the above on every PR.

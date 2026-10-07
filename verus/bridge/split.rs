@@ -44,7 +44,7 @@ pub fn locate(bounds: &Vec<usize>, offset: usize) -> (r: (usize, usize))
             offset <= bounds@[n - 1],
             bounds@[i as int] <= offset || i == 0,
             // every earlier piece ended strictly before `offset`
-            forall|k: int| 0 <= k < i ==> bounds@[k + 1] < offset,
+            forall|k: int| 0 <= k < i ==> #[trigger] bounds@[k + 1] < offset,
         decreases n - i,
     {
         i += 1;
@@ -57,7 +57,8 @@ pub fn locate(bounds: &Vec<usize>, offset: usize) -> (r: (usize, usize))
             }
         }
         if i > 0 {
-            assert(bounds@[i as int] < offset);
+            let k = i as int - 1;
+            assert(bounds@[k + 1] < offset);
         }
     }
     let rel = offset - bounds[i];

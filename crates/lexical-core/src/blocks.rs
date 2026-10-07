@@ -115,18 +115,8 @@ impl EditorState {
             let list = self.create_node(NodeData::List { list_type: ty, start: 1 });
             self.node_mut(item).align = align;
             self.insert_after(b, list);
-            // Move content across by hand: `replace_element` would re-parent `item`.
-            for k in self.node(b).children.clone() {
-                self.append_child(item, k);
-            }
             self.append_child(list, item);
-            if let Some(sel) = self.selection.as_mut() {
-                for p in [&mut sel.anchor, &mut sel.focus] {
-                    if p.key == b {
-                        p.key = item;
-                    }
-                }
-            }
+            self.transfer_children(b, item);
             self.remove(b);
         }
         self.merge_adjacent_lists();
@@ -181,6 +171,16 @@ impl EditorState {
     /// Convert a list item into a paragraph placed after (a split of) its list.
     /// Returns the new paragraph.
     pub fn unlist_item(&mut self, item: NodeKey) -> NodeKey {
+        // A nested item first climbs out to the top-level list, otherwise the
+        // paragraph would end up inside a wrapper list item.
+        while let Some(wrapper) = self
+            .parent(item)
+            .and_then(|nl| self.parent(nl))
+            .filter(|&w| self.is_wrapper(w))
+        {
+            let _ = wrapper;
+            self.outdent_item(item);
+        }
         let list = self.parent(item).expect("list item without list");
         let idx = self.index_in_parent(item).unwrap();
         let para = self.create_node(NodeData::Paragraph);
@@ -196,7 +196,8 @@ impl EditorState {
                 self.append_child(nl, t);
             }
         }
-        self.replace_element(item, para);
+        self.transfer_children(item, para);
+        self.remove(item);
         self.prune_empty_lists(list);
         para
     }

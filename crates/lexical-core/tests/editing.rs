@@ -132,10 +132,17 @@ fn lists_toggle_nest_and_exit() {
     assert_eq!(l.lines.last().unwrap().style, BlockStyle::Paragraph);
     assert_eq!(lines(&e).len(), 4);
 
-    // toggling the same list type again removes the list
+    // a mixed selection (items + the plain paragraph) extends the list over everything
     e.dispatch(Command::SelectAll);
     e.dispatch(Command::ToggleList(ListType::Number));
+    let l = Layout::build(e.state());
+    assert!(l.lines.iter().all(|l| matches!(l.style, BlockStyle::ListItem { .. })));
+    assert_eq!(e.state().root_children().len(), 1, "one merged list");
+
+    // toggling the same list type again, now that every block is an item, removes it
+    e.dispatch(Command::ToggleList(ListType::Number));
     assert!(Layout::build(e.state()).lines.iter().all(|l| l.style == BlockStyle::Paragraph));
+    e.state().check_invariants().unwrap();
 }
 
 #[test]

@@ -1,31 +1,42 @@
 # Formal verification with Verus
 
-[Verus](https://github.com/verus-lang/verus) checks Rust code against specifications with an SMT
-solver. Verus only accepts a subset of Rust (no `HashMap`, trait objects, GTK…), so the production
-crates are not verified directly. Instead each module here is an **executable model that mirrors one
-function of the production code**, and is proven correct for *all* inputs (not just tested ones).
+Modelled on [dafny-replay](https://github.com/metareflection/dafny-replay): **verified kernels,
+proved once, plugged into a domain that owes only a small set of obligations.**
 
-| Module | Mirrors | Properties proven |
-|---|---|---|
-| `history.rs` | `History` / `Editor::{undo,redo}` in `lexical-core` | `undo.len + redo.len <= limit` is invariant; a commit always clears redo; `undo` restores exactly the saved state; **undo∘redo and redo∘undo are the identity** on the whole editor; editing after undo discards redo |
-| `diff.rs` | `reconciler::apply` text diff in `lexical-adw` | the single splice (`old[0..p] + new[p..new_end] + old[old_end..]`) **equals `new` exactly**, so the widget text always equals the layout text; edit bounds are valid; no-op on equal strings |
-| `layout_sync.rs` | `Layout::{offset_of, point_at}` | line starts are strictly increasing; offsets never leak into the next line; **`point_at(offset_of(p)) == p` for every valid point** (lossless model↔widget selection sync); offsets inside list markers clamp to content start |
-| `split.rs` | selection remap in `EditorState::split_text` | an offset lands in exactly one piece at the same character; first-fit on shared boundaries; piece lengths sum to the node length |
+```text
+Domain (Doc, Cmd, Inv, Init, Apply, Normalize)      domains/editor.rs     <- obligations R1, R2
+        |  plugged into
+Replay kernel     History = {past, present, future}  kernels/replay.rs     <- undo/redo for ANY domain
+Authority kernel  Server  = {version, present, log}  kernels/authority.rs  <- sync for ANY domain
+        |  refined by / bridged to production
+production_history.rs   abs(History in lexical-core) = kernel History
+bridge/                 reconciler diff, selection offset mapping, split_text remap
+theorems.rs             the kernels instantiated with the editor
+```
+
+**Read [`GUARANTEES.md`](GUARANTEES.md)** for exactly what is proved, what is obligated and what is
+trusted. In one line: *if every editor command preserves the document invariant, then every state
+reachable through typing, undo, redo, time travel, stale or hostile clients, and optimistic
+re-basing also satisfies it — by construction* — plus per-command laws such as "Enter never loses a
+character" and "Backspace at a block start merges without losing text".
 
 ## Running
 
 ```sh
-VERUS=/path/to/verus verus/verify.sh      # or just put `verus` on PATH
+VERUS=/path/to/verus verus/verify.sh      # or put `verus` on PATH
 ```
 
-CI downloads the latest Verus release and runs this on every pull request.
+CI downloads the latest Verus release and runs this on every pull request. Verus is a fast-moving
+project (the mutable-reference semantics changed recently); if CI breaks after a Verus release,
+this directory was last verified with Verus commit `2c9bf54` (rolling 2026-10-07).
 
-## What this does *not* prove
+Building Verus from source (what was done to develop these proofs when release downloads were
+unavailable): `rustup toolchain install` per `rust-toolchain.toml`, `pip install z3-solver==4.16.0.0`
+and symlink `z3` into `source/`, then `source ../tools/activate && vargo build --release`.
 
-* The models are hand-mirrored. They can drift from the Rust they describe; when you change
-  `history.rs`, `reconciler.rs`'s diff, `Layout::point_at` or `split_text`, update the matching model.
-  (Differential tests in `crates/lexical-core/tests` exercise the same behaviours on the real code.)
-* Not covered: the tree-editing algorithms (`delete_between`, list indent/outdent), Unicode
-  grapheme segmentation, GTK itself. These are tested but not proven.
-* "Sync" here means model↔view synchronisation (selection mapping and buffer reconciliation).
-  There is no multi-user/collaborative sync in the engine yet.
+## Honest limits
+
+Verus verifies a subset of Rust, so these are models mirrored from the production code, not the
+production code itself — see "Integration boundary" in `GUARANTEES.md`. The runtime counterpart
+`EditorState::check_invariants`, driven by random traces in
+`crates/lexical-core/tests/invariants.rs`, covers the tree-level invariants the models abstract away.

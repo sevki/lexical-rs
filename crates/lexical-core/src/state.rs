@@ -239,13 +239,13 @@ impl EditorState {
         }
     }
 
-    /// Replace element `old` by `new`, moving the children across.
-    pub(crate) fn replace_element(&mut self, old: NodeKey, new: NodeKey) {
+    /// Move `old`'s children into `new` and retarget selection points on `old`.
+    /// Neither node's own position in the tree changes.
+    pub(crate) fn transfer_children(&mut self, old: NodeKey, new: NodeKey) {
         let kids: Vec<NodeKey> = self.node(old).children.clone();
         for k in kids {
             self.append_child(new, k);
         }
-        self.insert_after(old, new);
         if let Some(sel) = self.selection.as_mut() {
             for p in [&mut sel.anchor, &mut sel.focus] {
                 if p.key == old {
@@ -253,6 +253,12 @@ impl EditorState {
                 }
             }
         }
+    }
+
+    /// Replace element `old` by the detached element `new`, in place.
+    pub(crate) fn replace_element(&mut self, old: NodeKey, new: NodeKey) {
+        self.insert_after(old, new);
+        self.transfer_children(old, new);
         self.remove(old);
     }
 

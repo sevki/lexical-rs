@@ -42,6 +42,15 @@ pub proof fn lemma_start_strict(ls: Seq<Line>, i: int, j: int)
     assert(start(ls, j) == start(ls, j - 1) + ls[j - 1].marker + ls[j - 1].len + 1);
 }
 
+pub proof fn lemma_start_mono(ls: Seq<Line>, i: int, j: int)
+    requires 0 <= i <= j <= ls.len(),
+    ensures start(ls, i) <= start(ls, j),
+{
+    if i < j {
+        lemma_start_strict(ls, i, j);
+    }
+}
+
 /// Mirrors `Layout::offset_of` once the point is resolved to `(line, off)`.
 pub fn offset_of(ls: &Vec<Line>, starts: &Vec<usize>, line: usize, off: usize) -> (r: usize)
     requires
@@ -54,7 +63,11 @@ pub fn offset_of(ls: &Vec<Line>, starts: &Vec<usize>, line: usize, off: usize) -
         r as int == content_start(ls@, line as int) + off,
 {
     proof {
-        lemma_start_strict(ls@, line as int, ls.len() as int);
+        // start(line) + marker + len + 1 == start(line + 1) <= start(n) < usize::MAX
+        lemma_start_mono(ls@, line as int + 1, ls.len() as int);
+        assert(start(ls@, line as int + 1)
+            == start(ls@, line as int) + ls@[line as int].marker + ls@[line as int].len + 1);
+        assert(starts@[line as int] == start(ls@, line as int));
     }
     starts[line] + ls[line].marker + off
 }
@@ -113,27 +126,27 @@ pub fn roundtrip(ls: &Vec<Line>, starts: &Vec<usize>, line: usize, off: usize)
     proof {
         let n = ls.len() as int;
         let cs = content_start(ls@, line as int);
-        lemma_start_strict(ls@, line as int, n);
-        // x lies within line `line`: start(line) <= x <= start(line)+marker+len < start(line+1)
-        if (line as int) + 1 < n {
-            assert(start(ls@, line as int + 1) == start(ls@, line as int) + ls@[line as int].marker
-                + ls@[line as int].len + 1);
-            assert(x < starts@[line as int + 1]);
-        }
-        // So the last line starting <= x is `line`: any later line starts after x.
+        let sl = start(ls@, line as int);
+        let next = start(ls@, line as int + 1);
+        assert(next == sl + ls@[line as int].marker + ls@[line as int].len + 1);
+        // x lies within line `line`: start(line) <= x < start(line + 1)
+        assert(sl <= x as int);
+        assert((x as int) < next);
+        assert(starts@[line as int] == sl);
         if l2 != line {
             if l2 > line {
-                lemma_start_strict(ls@, line as int + 1, l2 as int + 1);
-                assert(starts@[l2 as int] > x) by {
-                    if (l2 as int) > (line as int) + 1 {
-                        lemma_start_strict(ls@, line as int + 1, l2 as int);
-                    }
-                }
+                // line + 1 <= l2, so start(l2) >= start(line + 1) > x; but point_at
+                // only returns lines with start <= offset
+                lemma_start_mono(ls@, line as int + 1, l2 as int);
+                assert(starts@[l2 as int] == start(ls@, l2 as int));
+                assert(starts@[l2 as int] > x);
                 assert(false);
             } else {
-                // l2 < line: then the line after l2 starts at or before x, contradicting maximality
+                // l2 < line: line l2 + 1 starts at or before x, yet point_at claims
+                // x lies before the start of line l2 + 1
                 assert(l2 as int + 1 < n);
-                lemma_start_strict(ls@, l2 as int + 1, line as int + 1);
+                lemma_start_mono(ls@, l2 as int + 1, line as int);
+                assert(starts@[l2 as int + 1] == start(ls@, l2 as int + 1));
                 assert(starts@[l2 as int + 1] <= x);
                 assert(false);
             }

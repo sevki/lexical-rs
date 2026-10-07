@@ -6,27 +6,33 @@ use crate::state::EditorState;
 
 impl EditorState {
     pub(crate) fn normalize_dirty(&mut self) {
-        let mut containers: Vec<NodeKey> = self
-            .dirty
-            .iter()
-            .copied()
-            .filter(|k| self.contains(*k) && self.node(*k).is_element())
-            .collect();
-        containers.sort();
-        for c in containers {
-            if self.contains(c) {
-                self.normalize_element(c);
+        // Removing an empty link can make two text nodes adjacent, and removing an
+        // empty text node can empty a link, so iterate to a fixed point.
+        for _ in 0..8 {
+            let empty_links: Vec<_> = self
+                .nodes
+                .values()
+                .filter(|n| n.is_inline() && n.children.is_empty())
+                .map(|n| n.key)
+                .collect();
+            for l in &empty_links {
+                self.remove(*l);
             }
-        }
-        // Empty links left behind by deletions.
-        let empty_links: Vec<_> = self
-            .nodes
-            .values()
-            .filter(|n| n.is_inline() && n.children.is_empty())
-            .map(|n| n.key)
-            .collect();
-        for l in empty_links {
-            self.remove(l);
+            let mut containers: Vec<NodeKey> = self
+                .dirty
+                .iter()
+                .copied()
+                .filter(|k| self.contains(*k) && self.node(*k).is_element())
+                .collect();
+            containers.sort();
+            for c in containers {
+                if self.contains(c) {
+                    self.normalize_element(c);
+                }
+            }
+            if empty_links.is_empty() && !self.nodes.values().any(|n| n.is_inline() && n.children.is_empty()) {
+                break;
+            }
         }
     }
 

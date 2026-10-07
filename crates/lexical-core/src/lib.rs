@@ -9,6 +9,7 @@ pub mod editor;
 pub mod error;
 pub mod format;
 pub mod history;
+mod invariants;
 pub mod json;
 pub mod layout;
 pub mod markdown;
