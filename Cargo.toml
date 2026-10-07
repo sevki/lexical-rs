@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/lexical-core", "crates/lexical-adw", "crates/lexical-sync"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/sevki/lexical-rs"
+
+[workspace.dependencies]
+bitflags = "2"
+serde_json = "1"
+unicode-segmentation = "1"
