@@ -37,6 +37,21 @@ jobs:
       - name: Deeper randomised sessions
         run: LEXICAL_FUZZ_SEEDS=200 cargo test --release -p lexical-sync --test fuzz
 
+  plugin:
+    name: lexical-plugin (WIT components, wasmtime host)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            plugins/markdown-shortcuts
+      - run: cargo test -p lexical-plugin-host
+
   gtk:
     name: lexical-adw (GTK4 / libadwaita, headless)
     runs-on: ubuntu-24.04

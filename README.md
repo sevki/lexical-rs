@@ -8,6 +8,8 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 |---|---|
 | [`lexical-core`](crates/lexical-core) | Toolkit-agnostic engine: node tree, `EditorState`, range selection, update pipeline, node transforms, listeners, commands, history, Lexical JSON, flattened `Layout`. No GTK dependency. |
 | [`lexical-adw`](crates/lexical-adw) | GTK4 / libadwaita views: `LexicalView` (editing surface), `Toolbar`, buffer reconciler, and a demo app. |
+| [`lexical-plugin`](crates/lexical-plugin) | The plugin SDK. Plugins are **WebAssembly components** implementing the WIT interface `lexical:editor/plugin` ([`wit/lexical.wit`](crates/lexical-plugin/wit/lexical.wit)): a pure function from a command or text node to a list of operations. `plugins/markdown-shortcuts` is the reference plugin. |
+| [`lexical-plugin-host`](crates/lexical-plugin-host) | Loads plugin components with wasmtime and adds them to an `Editor` (`WasmPlugin::load`). Plugins hold no handle to the editor and run under a per-call fuel budget and a memory cap. |
 | [`lexical-sync`](crates/lexical-sync) | Real-time collaboration on [Loro](https://loro.dev): the document is flattened to one rich text (line-terminator characters carry block attributes, per-key marks carry inline formats), edits become minimal CRDT operations, remote updates are unflattened back into the editor. Local-only undo/redo, cursors that follow their text, and remote presence. |
 | [`verus/`](verus) | Formal proofs (Verus) in the style of [dafny-replay](https://github.com/metareflection/dafny-replay): generic **replay** (undo/redo) and **authority** (sync) kernels proved once, the editor as a domain with proved invariants and per-command laws, plus proofs for the view-sync algorithms. See [`verus/GUARANTEES.md`](verus/GUARANTEES.md). |
 
@@ -78,6 +80,10 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
   presence); and randomised 2/3/5-peer sessions with delayed, reordered and duplicated
   delivery that check document invariants every step and identical documents at the end.
   `LEXICAL_FUZZ_SEEDS=500 cargo test --release -p lexical-sync --test fuzz` goes deeper.
+* `lexical-plugin-host`: builds the real `markdown-shortcuts` component
+  (`rustup target add wasm32-wasip2`), loads it into an editor, checks it produces the same
+  documents as the native markdown plugin for a set of inputs, and checks that bad bytes, a
+  starved fuel budget and a tiny memory cap are refused without harming the editor.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
 * Visual regression (PRs only): CI renders fixed editor scenarios (formats, headings, lists,

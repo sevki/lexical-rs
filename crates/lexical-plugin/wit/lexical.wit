@@ -1,0 +1,112 @@
+/// The contract between the Lexical editor engine (the host) and a plugin (a component).
+///
+/// A plugin is a pure function from a description of what is happening to a list of
+/// operations the host should perform. It holds no handle to the editor, so it cannot
+/// observe or change anything it was not given, and the host decides what to apply.
+package lexical:editor@0.1.0;
+
+interface types {
+    enum heading-tag { h1, h2, h3, h4, h5, h6 }
+
+    enum list-type { bullet, number, check }
+
+    variant block-kind {
+        paragraph,
+        heading(heading-tag),
+        quote,
+        code,
+        list-item(list-type),
+    }
+
+    flags text-format {
+        bold,
+        italic,
+        strikethrough,
+        underline,
+        code,
+        subscript,
+        superscript,
+        highlight,
+    }
+
+    /// What a plugin can be asked to react to.
+    variant command {
+        insert-text(string),
+        paste(string),
+        insert-paragraph,
+        insert-line-break,
+        delete-backward,
+        delete-forward,
+        format-text(text-format),
+        toggle-list(list-type),
+        indent,
+        outdent,
+        undo,
+        redo,
+        /// An application-defined command.
+        custom(string),
+    }
+
+    /// The caret's surroundings when a command arrives.
+    record command-context {
+        /// The block holding the caret.
+        block: block-kind,
+        /// Text of that block before and after the caret (empty when there is no caret).
+        before-caret: string,
+        after-caret: string,
+        /// The selected text, empty when the selection is collapsed.
+        selected: string,
+        editable: bool,
+    }
+
+    /// A text node being normalised by a transform.
+    record text-context {
+        text: string,
+        /// Whether this is the first child of a plain paragraph.
+        starts-paragraph: bool,
+        /// The caret's character offset in `text`, when it is collapsed in this node.
+        caret: option<u32>,
+    }
+
+    /// Something the host should do, in order.
+    variant op {
+        /// Remove this many characters from the start of the text node being transformed.
+        delete-prefix(u32),
+        /// Replace the caret's block with this kind.
+        set-block(block-kind),
+        toggle-list(list-type),
+        /// Insert text at the caret.
+        insert-text(string),
+        /// Run another command through the editor.
+        dispatch(command),
+    }
+
+    record outcome {
+        /// True when the plugin consumed the command, so lower-priority handlers and the
+        /// built-in behaviour do not run.
+        handled: bool,
+        ops: list<op>,
+    }
+
+    record plugin-info {
+        name: string,
+        /// Higher runs first. Built-in behaviour runs after every plugin.
+        priority: s32,
+        /// Whether `transform-text` should be called for text nodes.
+        transforms-text: bool,
+    }
+}
+
+interface plugin {
+    use types.{command, command-context, text-context, outcome, op, plugin-info};
+
+    info: func() -> plugin-info;
+
+    handle-command: func(cmd: command, ctx: command-context) -> outcome;
+
+    transform-text: func(ctx: text-context) -> list<op>;
+}
+
+world lexical-plugin {
+    export plugin;
+}

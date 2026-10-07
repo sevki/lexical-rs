@@ -1,0 +1,12 @@
+[package]
+name = "lexical-plugin-host"
+description = "Run Lexical editor plugins (WebAssembly components, see lexical-plugin) inside lexical-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lexical-core = { path = "../lexical-core" }
+wasmtime = { version = "49", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
+wasmtime-wasi = "49"
