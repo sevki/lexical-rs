@@ -54,10 +54,10 @@ fn numbered_from(start: u64) -> EditorState {
     editor.dispatch(Command::ToggleList(ListType::Number));
     let mut json = editor.state().to_json();
     fn set(v: &mut serde_json::Value, start: u64) {
-        if let Some(o) = v.as_object_mut() {
-            if o.get("type").and_then(|t| t.as_str()) == Some("list") {
-                o.insert("start".into(), start.into());
-            }
+        if let Some(o) = v.as_object_mut()
+            && o.get("type").and_then(|t| t.as_str()) == Some("list")
+        {
+            o.insert("start".into(), start.into());
         }
         match v {
             serde_json::Value::Object(o) => o.values_mut().for_each(|c| set(c, start)),
