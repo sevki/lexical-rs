@@ -56,11 +56,9 @@ impl SyncDoc {
         let doc = LoroDoc::new();
         configure(&doc);
         // Identical bytes on every replica: no timestamp, fixed peer, fixed content.
-        doc.set_record_timestamp(false);
         doc.set_peer_id(BOOTSTRAP_PEER).map_err(crdt)?;
         doc.get_text(TEXT_ID).insert(0, "\n").map_err(crdt)?;
         doc.commit();
-        doc.set_record_timestamp(true);
         doc.set_peer_id(peer).map_err(crdt)?;
         Self::finish(doc, options)
     }
@@ -226,6 +224,10 @@ impl SyncDoc {
 }
 
 fn configure(doc: &LoroDoc) {
+    // Wall-clock change timestamps are never used (undo merging has its own clock) and
+    // mixing them with unstamped changes trips a debug assertion in Loro's change merging
+    // on CI. Leaving them off everywhere also keeps the bootstrap bytes identical.
+    doc.set_record_timestamp(false);
     // Marks never grow at their edges: formatting of newly typed text is stated explicitly
     // by the editor, so the result does not depend on which side a peer typed from.
     doc.config_default_text_style(Some(StyleConfig { expand: ExpandType::None }));
