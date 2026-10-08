@@ -4,7 +4,7 @@
 //! need that target: `rustup target add wasm32-wasip2`.
 
 use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType};
-use lexical_plugin_wasmtime::{load, load_with, Budget, ComponentPlugin, PluginError, WasmtimePlugin};
+use lexical_wasmtime::{load, load_with, Budget, ComponentPlugin, PluginError, WasmtimePlugin};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 use std::sync::OnceLock;

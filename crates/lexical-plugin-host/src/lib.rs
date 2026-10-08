@@ -2,7 +2,7 @@
 //!
 //! A plugin implements the `lexical:editor/plugin` WIT interface (see the `lexical-plugin`
 //! crate) and is loaded by a *backend*, the part that depends on a particular WebAssembly
-//! runtime: `lexical-plugin-wasmtime` for wasmtime, or your own implementation of
+//! runtime: `lexical-wasmtime` for wasmtime, or your own implementation of
 //! [`PluginBackend`] for another. This crate holds everything else, so it has no runtime
 //! dependency and builds for `wasm32-unknown-unknown`: it can itself run inside Deno or a
 //! worker, with the plugins called through the JavaScript host's own WebAssembly support.

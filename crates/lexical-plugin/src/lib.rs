@@ -19,7 +19,7 @@
 //! ```
 //!
 //! Build with `cargo build --release --target wasm32-wasip2` and load the `.wasm` with
-//! a backend such as `lexical-plugin-wasmtime` (the runtime-neutral logic is in
+//! a backend such as `lexical-wasmtime` (the runtime-neutral logic is in
 //! `lexical-plugin-host`).
 
 pub mod bindings {

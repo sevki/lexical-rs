@@ -10,7 +10,7 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 | [`lexical-adw`](crates/lexical-adw) | GTK4 / libadwaita views: `LexicalView` (editing surface), `Toolbar`, buffer reconciler, and a demo app. |
 | [`lexical-plugin`](crates/lexical-plugin) | The plugin SDK. Plugins are **WebAssembly components** implementing the WIT interface `lexical:editor/plugin` ([`wit/lexical.wit`](crates/lexical-plugin/wit/lexical.wit)): a pure function from a command or text node to a list of operations. `plugins/markdown-shortcuts` is the reference plugin. |
 | [`lexical-plugin-host`](crates/lexical-plugin-host) | **Runtime-neutral** plugin host: turns commands and text nodes into plugin calls and applies the operations that come back to an `Editor`. It talks to a component through two small traits (`PluginBackend`, `DocumentBackend`), has no WebAssembly runtime dependency and builds for `wasm32-unknown-unknown`, so it can run inside Deno or a worker. `InProcess` runs an SDK plugin natively. Plugins hold no handle to the editor, and a read-only editor never consults them. |
-| [`lexical-plugin-wasmtime`](crates/lexical-plugin-wasmtime) | The wasmtime backend: `load(bytes)` / `load_document(bytes)` return a plugin for `Editor::add_plugin`, sandboxed with an empty WASI context, a memory cap and a fuel budget per call. To support another runtime (wasmer, a JavaScript host through `jco transpile`, …) implement the two traits; nothing else changes. |
+| [`lexical-wasmtime`](crates/lexical-wasmtime) | The wasmtime backend: `load(bytes)` / `load_document(bytes)` return a plugin for `Editor::add_plugin`, sandboxed with an empty WASI context, a memory cap and a fuel budget per call. To support another runtime (wasmer, a JavaScript host through `jco transpile`, …) implement the two traits; nothing else changes. |
 | [`plugins/lexical-js-shim`](plugins/lexical-js-shim) | **Lexical for JavaScript as a plugin.** A component (JS engine + the real `lexical` packages, built with `jco componentize`) behind the coarser `document-plugin` WIT interface: the host sends the document as Lexical JSON plus the selection, the shim runs the command through unmodified Lexical plugins (`registerRichText`, `@lexical/markdown` shortcuts) in a headless editor, and the resulting document is applied as one ordinary update. Which JS plugins run is one file, `src/plugins.js`. |
 | [`lexical-sync`](crates/lexical-sync) | Real-time collaboration on [Loro](https://loro.dev): the document is flattened to one rich text (line-terminator characters carry block attributes, per-key marks carry inline formats), edits become minimal CRDT operations, remote updates are unflattened back into the editor. Local-only undo/redo, cursors that follow their text, and remote presence. |
 | [`verus/`](verus) | Formal proofs (Verus) in the style of [dafny-replay](https://github.com/metareflection/dafny-replay): generic **replay** (undo/redo) and **authority** (sync) kernels proved once, the editor as a domain with proved invariants and per-command laws, plus proofs for the view-sync algorithms. See [`verus/GUARANTEES.md`](verus/GUARANTEES.md). |
@@ -18,7 +18,7 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 ```sh
 cargo run -p lexical-adw --example demo     # needs libadwaita >= 1.5 (libadwaita-1-dev)
 cargo test -p lexical-plugin-host           # plugin host logic, no Wasm runtime involved
-cargo test -p lexical-plugin-wasmtime --test wasm   # real components (needs: rustup target add wasm32-wasip2)
+cargo test -p lexical-wasmtime --test wasm   # real components (needs: rustup target add wasm32-wasip2)
 # demo with the markdown shortcuts plugin:
 (cd plugins/markdown-shortcuts && cargo build --release --target wasm32-wasip2)
 LEXICAL_PLUGINS=plugins/markdown-shortcuts/target/wasm32-wasip2/release/markdown_shortcuts.wasm \
@@ -91,17 +91,17 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
 * `lexical-plugin-host`: runs plugins in-process, with no Wasm runtime, to test the host
   logic itself (transforms, commands, read-only, nested dispatch); CI also checks it builds
   for `wasm32-unknown-unknown`.
-* `lexical-plugin-wasmtime`: builds the real `markdown-shortcuts` component
+* `lexical-wasmtime`: builds the real `markdown-shortcuts` component
   (`rustup target add wasm32-wasip2`), loads it into an editor, checks it produces the
   expected blocks for every shortcut (and none for near misses), runs hundreds of random
   commands with it loaded checking document invariants, and checks that bad bytes, a starved
   fuel budget and a tiny memory cap are refused without harming the editor.
-* Lexical JS shim (`lexical-plugin-wasmtime/tests/lexical_js.rs`, needs node and npm access): the real
+* Lexical JS shim (`lexical-wasmtime/tests/lexical_js.rs`, needs node and npm access): the real
   `@lexical/markdown` shortcuts turn typed `## ` and `- ` into a heading and a list inside the
   component; plain typing, Enter and Backspace through Lexical JS give the same text as the
   native engine; formatting goes through JS while Undo stays with the editor's own history;
   a starved fuel budget fails the call and leaves the editor alone. Run it in release mode
-  (`cargo test --release -p lexical-plugin-wasmtime --test lexical_js`): compiling the 20 MB
+  (`cargo test --release -p lexical-wasmtime --test lexical_js`): compiling the 20 MB
   component is slow in debug.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.

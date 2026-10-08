@@ -55,7 +55,7 @@ jobs:
       # keep building for a bare wasm32 target so it can live inside Deno or a worker.
       - run: cargo test -p lexical-plugin-host
       - run: cargo check -p lexical-core -p lexical-plugin -p lexical-plugin-host --target wasm32-unknown-unknown
-      - run: cargo test -p lexical-plugin-wasmtime --test wasm
+      - run: cargo test -p lexical-wasmtime --test wasm
 
   lexical-js:
     name: Lexical for JavaScript as a plugin (JS-in-Wasm shim)
@@ -70,7 +70,7 @@ jobs:
           cache: npm
           cache-dependency-path: plugins/lexical-js-shim/package-lock.json
       # Release mode: compiling the ~20 MB JavaScript runtime component is slow in debug.
-      - run: cargo test --release -p lexical-plugin-wasmtime --test lexical_js
+      - run: cargo test --release -p lexical-wasmtime --test lexical_js
 
   gtk:
     name: lexical-adw (GTK4 / libadwaita, headless)

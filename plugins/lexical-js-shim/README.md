@@ -22,7 +22,7 @@ npm run build        # dist/lexical-js-shim.wasm (about 20 MB)
 ```
 
 ```rust
-let plugin = lexical_plugin_wasmtime::load_document(&std::fs::read("dist/lexical-js-shim.wasm")?)?;
+let plugin = lexical_wasmtime::load_document(&std::fs::read("dist/lexical-js-shim.wasm")?)?;
 editor.add_plugin(Box::new(plugin));
 ```
 

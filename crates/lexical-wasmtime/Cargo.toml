@@ -1,5 +1,5 @@
 [package]
-name = "lexical-plugin-wasmtime"
+name = "lexical-wasmtime"
 description = "wasmtime backend for lexical-plugin-host: loads Lexical plugin components under a fuel budget and memory cap"
 version.workspace = true
 edition.workspace = true

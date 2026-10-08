@@ -1622,7 +1622,7 @@ version = "0.1.0"
 dependencies = [
  "gtk4",
  "lexical-core",
- "lexical-plugin-wasmtime",
+ "lexical-wasmtime",
  "libadwaita",
 ]
 
@@ -1652,7 +1652,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "lexical-plugin-wasmtime"
+name = "lexical-sync"
+version = "0.1.0"
+dependencies = [
+ "lexical-core",
+ "loro",
+ "serde_json",
+ "similar",
+]
+
+[[package]]
+name = "lexical-wasmtime"
 version = "0.1.0"
 dependencies = [
  "lexical-core",
@@ -1661,16 +1671,6 @@ dependencies = [
  "lexical-sync",
  "wasmtime",
  "wasmtime-wasi",
-]
-
-[[package]]
-name = "lexical-sync"
-version = "0.1.0"
-dependencies = [
- "lexical-core",
- "loro",
- "serde_json",
- "similar",
 ]
 
 [[package]]

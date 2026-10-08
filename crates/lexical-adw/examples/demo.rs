@@ -19,7 +19,7 @@ fn load_plugins(editor: &mut Editor) {
     for path in std::env::split_paths(&paths) {
         match std::fs::read(&path)
             .map_err(|e| e.to_string())
-            .and_then(|b| lexical_plugin_wasmtime::load(&b).map_err(|e| e.to_string()))
+            .and_then(|b| lexical_wasmtime::load(&b).map_err(|e| e.to_string()))
         {
             Ok(plugin) => editor.add_plugin(Box::new(plugin)),
             Err(e) => eprintln!("plugin {}: {e}", path.display()),

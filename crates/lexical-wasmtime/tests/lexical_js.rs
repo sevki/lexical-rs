@@ -4,7 +4,7 @@
 //! directory), so these tests need node and network access to the npm registry.
 
 use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType, TextFormat};
-use lexical_plugin_wasmtime::{load_document, load_document_with, Budget, ComponentDocumentPlugin, PluginError, WasmtimeDocument};
+use lexical_wasmtime::{load_document, load_document_with, Budget, ComponentDocumentPlugin, PluginError, WasmtimeDocument};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 use std::sync::OnceLock;
