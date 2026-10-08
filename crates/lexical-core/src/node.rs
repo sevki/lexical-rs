@@ -119,6 +119,7 @@ pub enum NodeType {
     Link,
     Text,
     LineBreak,
+    Unknown,
 }
 
 impl NodeType {
@@ -134,6 +135,7 @@ impl NodeType {
             NodeType::Link => "link",
             NodeType::Text => "text",
             NodeType::LineBreak => "linebreak",
+            NodeType::Unknown => "unknown",
         }
     }
 }
@@ -159,6 +161,13 @@ pub enum NodeData {
         detail: u8,
     },
     LineBreak,
+    /// A node type the engine does not model (table, image, custom node, ...): the
+    /// original Lexical JSON, kept verbatim so the document survives a round trip.
+    /// Opaque, atomic and contributes no text.
+    Unknown {
+        #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Text)))]
+        json: String,
+    },
 }
 
 impl NodeData {
@@ -174,6 +183,7 @@ impl NodeData {
             NodeData::Link { .. } => NodeType::Link,
             NodeData::Text { .. } => NodeType::Text,
             NodeData::LineBreak => NodeType::LineBreak,
+            NodeData::Unknown { .. } => NodeType::Unknown,
         }
     }
 
@@ -188,7 +198,7 @@ impl NodeData {
     }
 
     pub fn is_element(&self) -> bool {
-        !matches!(self, NodeData::Text { .. } | NodeData::LineBreak)
+        !matches!(self, NodeData::Text { .. } | NodeData::LineBreak | NodeData::Unknown { .. })
     }
 }
 

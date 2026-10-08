@@ -59,3 +59,44 @@ fn exports_for_lexical_js() {
         std::fs::write(format!("{dir}/rust-export.json"), s.to_json_string()).unwrap();
     }
 }
+
+#[test]
+fn unmodelled_nodes_survive_a_round_trip_and_editing() {
+    let doc = r#"{"root":{"type":"root","version":1,"format":"","indent":0,"direction":null,"children":[
+      {"type":"paragraph","version":1,"format":"","indent":0,"direction":null,"children":[
+        {"type":"text","version":1,"text":"a","format":0,"style":"","mode":"normal","detail":0},
+        {"type":"mention","version":1,"name":"sevki","extra":{"n":[1,2]}}]},
+      {"type":"table","version":1,"rows":[["x"]]},
+      {"type":"paragraph","version":1,"format":"","indent":0,"direction":null,"children":[]}]}}"#;
+    let original: Value = serde_json::from_str(doc).unwrap();
+    let mut s = EditorState::from_json(&original).expect("unknown nodes must import");
+    s.check_invariants().expect("invariants");
+    let out = s.to_json();
+    assert_eq!(out["root"]["children"][1], original["root"]["children"][1]);
+    assert_eq!(out["root"]["children"][0]["children"][1], original["root"]["children"][0]["children"][1]);
+    assert_eq!(s.to_plain_text().replace('\n', ""), "a");
+}
+
+#[test]
+fn editing_around_unmodelled_nodes_keeps_them() {
+    use lexical_core::{Command, Editor};
+    let doc = r#"{"root":{"type":"root","children":[
+      {"type":"paragraph","children":[{"type":"text","text":"ab","format":0,"style":"","mode":"normal","detail":0},{"type":"mention","name":"m"}]},
+      {"type":"table","rows":[]},
+      {"type":"paragraph","children":[{"type":"text","text":"cd","format":0,"style":"","mode":"normal","detail":0}]}]}}"#;
+    let count = |e: &Editor| e.state().to_json_string().matches("\"mention\"").count()
+        + e.state().to_json_string().matches("\"table\"").count();
+    let mut e = Editor::with_state(EditorState::from_json_str(doc).unwrap());
+    assert_eq!(count(&e), 2);
+    for c in [
+        Command::InsertText("x".into()),
+        Command::InsertParagraph,
+        Command::DeleteCharacter { backward: true },
+        Command::DeleteCharacter { backward: false },
+        Command::Undo,
+    ] {
+        e.dispatch(c);
+        e.state().check_invariants().expect("invariants");
+        assert_eq!(count(&e), 2, "unmodelled node lost");
+    }
+}

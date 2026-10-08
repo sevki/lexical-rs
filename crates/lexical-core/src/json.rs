@@ -29,6 +29,9 @@ impl EditorState {
                 m.insert("detail".into(), (*detail).into());
             }
             NodeData::LineBreak => {}
+            NodeData::Unknown { json } => {
+                return serde_json::from_str(json).unwrap_or(Value::Null);
+            }
             d => {
                 let kids: Vec<Value> = n.children.iter().map(|&c| self.node_json(c)).collect();
                 m.insert("children".into(), kids.into());
@@ -135,7 +138,7 @@ impl EditorState {
                 rel: str_of("rel"),
                 title: str_of("title"),
             },
-            other => return Err(Error::InvalidJson(format!("unknown node type {other:?}"))),
+            _ => NodeData::Unknown { json: v.to_string() },
         };
         let is_el = data.is_element();
         let key = self.create_node(data);
