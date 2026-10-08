@@ -37,6 +37,24 @@ jobs:
       - name: Deeper randomised sessions
         run: LEXICAL_FUZZ_SEEDS=200 cargo test --release -p lexical-sync --test fuzz
 
+  yjs:
+    name: lexical-yjs (interop with @lexical/yjs, real Lexical for JavaScript)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugins/lexical-js-shim/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: plugins/lexical-js-shim
+      - run: cargo test -p lexical-yjs
+        env:
+          LEXICAL_JS_REQUIRED: "1"
+
   plugin:
     name: lexical-plugin (WIT components; runtime-neutral host + wasmtime backend)
     runs-on: ubuntu-24.04
