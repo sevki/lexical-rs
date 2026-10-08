@@ -48,9 +48,12 @@ impl EditorState {
                         m.insert("tag".into(), if *list_type == ListType::Number { "ol" } else { "ul" }.into());
                     }
                     NodeData::ListItem { checked } => {
-                        let value = self
-                            .index_in_parent(key)
-                            .map_or(1, |i| i + 1);
+                        // Lexical numbers items from the list's `start`.
+                        let start = match n.parent.map(|p| &self.node(p).data) {
+                            Some(NodeData::List { start, .. }) => *start,
+                            _ => 1,
+                        };
+                        let value = start + self.index_in_parent(key).unwrap_or(0) as u32;
                         m.insert("value".into(), value.into());
                         if let Some(c) = checked {
                             m.insert("checked".into(), (*c).into());
@@ -101,7 +104,9 @@ impl EditorState {
         let ty = v.get("type").and_then(Value::as_str).ok_or_else(|| Error::InvalidJson("node without type".into()))?;
         let str_of = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
         let data = match ty {
-            "text" => NodeData::Text {
+            // `tab` (a text node holding "\t") and `code-highlight` (text inside a code block)
+            // are text subclasses in Lexical; here they are plain text.
+            "text" | "tab" | "code-highlight" => NodeData::Text {
                 text: str_of("text").unwrap_or_default(),
                 format: TextFormat::from_bits_truncate(v.get("format").and_then(Value::as_u64).unwrap_or(0) as u32),
                 style: str_of("style").unwrap_or_default(),

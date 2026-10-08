@@ -47,6 +47,9 @@ verus/verify.sh                             # proofs (needs Verus)
 
 * **Lexical JSON** — `EditorState::to_json` / `from_json`, compatible with web Lexical documents
   (text format bits, `listType`, `tag`, `checked`, `indent`, alignment…).
+  Checked against real Lexical 0.52 (`plugins/lexical-js-shim/fixtures.mjs`): its output imports, and
+  our output loads in `parseEditorState`. `tab` and `code-highlight` import as plain text; other
+  node types (tables, images, custom nodes) are not modelled and are rejected.
 * **[JetStream](https://jetstream.rs) wire format** (feature `jetstream`) — `WireDocument` /
   `WireNode` derive `JetStreamWireFormat`; `EditorState` itself implements `WireFormat`, so a
   document can be sent as an RPC message (`to_wire_bytes` / `from_wire_bytes`). JetStream strings
