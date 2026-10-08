@@ -3,7 +3,7 @@
 //! protocol of small messages), which would cap a text node at 64 KiB and a document at
 //! 65,535 nodes.
 
-use jetstream_wireformat::WireFormat;
+use jetstream_wireformat::{Data, WireFormat};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::{self, Read, Write};
@@ -16,7 +16,8 @@ fn too_long(what: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, format!("{what} is too long"))
 }
 
-/// A `String` with a `u32` byte length.
+/// A `String` with a `u32` byte length: the UTF-8 bytes as a JetStream [`Data`], which
+/// also caps what a decoder will accept (32 MiB).
 pub struct Text;
 
 impl Text {
@@ -25,19 +26,12 @@ impl Text {
     }
 
     pub fn encode<W: Write>(s: &str, writer: &mut W) -> io::Result<()> {
-        let len = u32::try_from(s.len()).map_err(|_| too_long("text"))?;
-        len.encode(writer)?;
-        writer.write_all(s.as_bytes())
+        Data(s.as_bytes().to_vec()).encode(writer)
     }
 
     pub fn decode<R: Read>(reader: &mut R) -> io::Result<String> {
-        let len = u32::decode(reader)? as u64;
-        let mut bytes = Vec::new();
-        let read = reader.take(len).read_to_end(&mut bytes)? as u64;
-        if read != len {
-            return Err(io::ErrorKind::UnexpectedEof.into());
-        }
-        String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        String::from_utf8(Data::decode(reader)?.0)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 }
 
