@@ -203,6 +203,11 @@ pub struct Node {
     pub data: NodeData,
     pub indent: u32,
     pub align: Align,
+    /// Format and style the next text typed into an empty element starts with
+    /// (Lexical's `textFormat` / `textStyle`). Kept for interchange; unused by editing.
+    pub text_format: TextFormat,
+    #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Text)))]
+    pub text_style: String,
 }
 
 impl Node {

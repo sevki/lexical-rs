@@ -35,6 +35,10 @@ impl EditorState {
                 m.insert("direction".into(), "ltr".into());
                 m.insert("format".into(), n.align.as_str().into());
                 m.insert("indent".into(), n.indent.into());
+                if matches!(d, NodeData::Paragraph) {
+                    m.insert("textFormat".into(), n.text_format.bits().into());
+                    m.insert("textStyle".into(), n.text_style.clone().into());
+                }
                 match d {
                     NodeData::Heading(t) => {
                         m.insert("tag".into(), t.as_str().into());
@@ -138,6 +142,8 @@ impl EditorState {
         if is_el {
             let n = self.node_mut(key);
             n.indent = v.get("indent").and_then(Value::as_u64).unwrap_or(0) as u32;
+            n.text_format = TextFormat::from_bits_truncate(v.get("textFormat").and_then(Value::as_u64).unwrap_or(0) as u32);
+            n.text_style = str_of("textStyle").unwrap_or_default();
             n.align = Align::parse(v.get("format").and_then(Value::as_str).unwrap_or(""));
             for c in v.get("children").and_then(Value::as_array).into_iter().flatten() {
                 let ck = self.build_node(c)?;

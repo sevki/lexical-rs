@@ -14,7 +14,7 @@ fn essence(v: &Value) -> Value {
         Value::Object(m) => {
             let mut out = serde_json::Map::new();
             for (k, x) in m {
-                if matches!(k.as_str(), "direction" | "textFormat" | "textStyle" | "version") {
+                if matches!(k.as_str(), "direction" | "version") {
                     continue;
                 }
                 out.insert(k.clone(), essence(x));

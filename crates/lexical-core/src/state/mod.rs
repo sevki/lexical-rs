@@ -62,6 +62,8 @@ impl EditorState {
                 data: NodeData::Root,
                 indent: 0,
                 align: Align::Start,
+                text_format: TextFormat::empty(),
+                text_style: String::new(),
             },
         );
         EditorState {
@@ -196,7 +198,12 @@ impl EditorState {
         self.next_key += 1;
         self.nodes.insert(
             key,
-            Node { key, parent: None, children: vec![], data, indent: 0, align: Align::Start },
+            Node { key, parent: None, children: vec![], data,
+                indent: 0,
+                align: Align::Start,
+                text_format: TextFormat::empty(),
+                text_style: String::new(),
+            },
         );
         self.dirty.insert(key);
         key
