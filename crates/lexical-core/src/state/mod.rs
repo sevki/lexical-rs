@@ -18,10 +18,7 @@ use std::collections::{BTreeSet, HashMap};
 /// check the arena, so bytes from an untrusted source must go through
 /// [`EditorState::from_wire_bytes`] (or be followed by [`EditorState::check_wire`]).
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "jetstream",
-    derive(jetstream_wireformat::JetStreamWireFormat)
-)]
+#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
 pub struct EditorState {
     // Encoded in key order (canonical bytes) with a `u32` count, not JetStream's `u16`.
     #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Map)))]
@@ -82,16 +79,12 @@ impl EditorState {
 
     /// Panics if the node is missing; use [`get`](Self::get) for untrusted keys.
     pub fn node(&self, key: NodeKey) -> &Node {
-        self.nodes
-            .get(&key)
-            .unwrap_or_else(|| panic!("node {key} does not exist"))
+        self.nodes.get(&key).unwrap_or_else(|| panic!("node {key} does not exist"))
     }
 
     pub(crate) fn node_mut(&mut self, key: NodeKey) -> &mut Node {
         self.mark_dirty(key);
-        self.nodes
-            .get_mut(&key)
-            .unwrap_or_else(|| panic!("node {key} does not exist"))
+        self.nodes.get_mut(&key).unwrap_or_else(|| panic!("node {key} does not exist"))
     }
 
     pub fn contains(&self, key: NodeKey) -> bool {
@@ -183,10 +176,7 @@ impl EditorState {
     }
 
     pub fn dirty_nodes(&self) -> impl Iterator<Item = NodeKey> + '_ {
-        self.dirty
-            .iter()
-            .copied()
-            .filter(|k| self.nodes.contains_key(k))
+        self.dirty.iter().copied().filter(|k| self.nodes.contains_key(k))
     }
 
     pub fn create_node(&mut self, data: NodeData) -> NodeKey {
@@ -194,14 +184,7 @@ impl EditorState {
         self.next_key += 1;
         self.nodes.insert(
             key,
-            Node {
-                key,
-                parent: None,
-                children: vec![],
-                data,
-                indent: 0,
-                align: Align::Start,
-            },
+            Node { key, parent: None, children: vec![], data, indent: 0, align: Align::Start },
         );
         self.dirty.insert(key);
         key

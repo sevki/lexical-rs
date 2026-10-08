@@ -8,10 +8,7 @@ fn editor_with(text: &str) -> Editor {
 
 fn lines(e: &Editor) -> Vec<String> {
     let s = e.state();
-    s.line_blocks()
-        .iter()
-        .map(|&b| s.block_content(b).text)
-        .collect()
+    s.line_blocks().iter().map(|&b| s.block_content(b).text).collect()
 }
 
 fn select(e: &mut Editor, from: usize, to: usize) {
@@ -80,11 +77,7 @@ fn bold_toggle_range_and_typing() {
     select(&mut e, 0, 5);
     e.dispatch(Command::FormatText(TextFormat::BOLD));
     let l = Layout::build(e.state());
-    assert!(
-        l.runs
-            .iter()
-            .any(|r| r.start == 0 && r.end == 5 && r.format == TextFormat::BOLD)
-    );
+    assert!(l.runs.iter().any(|r| r.start == 0 && r.end == 5 && r.format == TextFormat::BOLD));
     assert!(l.runs.iter().any(|r| r.start == 5 && r.format.is_empty()));
     assert_eq!(e.state().selection_format(), TextFormat::BOLD);
     // toggling again removes it, and runs merge back into one node
@@ -104,22 +97,13 @@ fn bold_toggle_range_and_typing() {
 fn block_types_and_enter_rules() {
     let mut e = editor_with("title");
     e.dispatch(Command::SetBlockType(BlockType::Heading(HeadingTag::H2)));
-    assert_eq!(
-        Layout::build(e.state()).lines[0].style,
-        BlockStyle::Heading(HeadingTag::H2)
-    );
+    assert_eq!(Layout::build(e.state()).lines[0].style, BlockStyle::Heading(HeadingTag::H2));
     e.dispatch(Command::InsertParagraph); // at end: new paragraph
-    assert_eq!(
-        Layout::build(e.state()).lines[1].style,
-        BlockStyle::Paragraph
-    );
+    assert_eq!(Layout::build(e.state()).lines[1].style, BlockStyle::Paragraph);
     // backspace at start of heading turns it into a paragraph
     select(&mut e, 0, 0);
     e.dispatch(Command::DeleteCharacter { backward: true });
-    assert_eq!(
-        Layout::build(e.state()).lines[0].style,
-        BlockStyle::Paragraph
-    );
+    assert_eq!(Layout::build(e.state()).lines[0].style, BlockStyle::Paragraph);
 }
 
 #[test]
@@ -135,16 +119,10 @@ fn lists_toggle_nest_and_exit() {
     select(&mut e, 7, 7); // inside "b"
     e.dispatch(Command::Indent);
     let l = Layout::build(e.state());
-    assert!(matches!(
-        l.lines[1].style,
-        BlockStyle::ListItem { depth: 1, .. }
-    ));
+    assert!(matches!(l.lines[1].style, BlockStyle::ListItem { depth: 1, .. }));
     e.dispatch(Command::Outdent);
     let l = Layout::build(e.state());
-    assert!(matches!(
-        l.lines[1].style,
-        BlockStyle::ListItem { depth: 0, .. }
-    ));
+    assert!(matches!(l.lines[1].style, BlockStyle::ListItem { depth: 0, .. }));
 
     // Enter on an empty item leaves the list
     select(&mut e, 14, 14);
@@ -158,21 +136,12 @@ fn lists_toggle_nest_and_exit() {
     e.dispatch(Command::SelectAll);
     e.dispatch(Command::ToggleList(ListType::Number));
     let l = Layout::build(e.state());
-    assert!(
-        l.lines
-            .iter()
-            .all(|l| matches!(l.style, BlockStyle::ListItem { .. }))
-    );
+    assert!(l.lines.iter().all(|l| matches!(l.style, BlockStyle::ListItem { .. })));
     assert_eq!(e.state().root_children().len(), 1, "one merged list");
 
     // toggling the same list type again, now that every block is an item, removes it
     e.dispatch(Command::ToggleList(ListType::Number));
-    assert!(
-        Layout::build(e.state())
-            .lines
-            .iter()
-            .all(|l| l.style == BlockStyle::Paragraph)
-    );
+    assert!(Layout::build(e.state()).lines.iter().all(|l| l.style == BlockStyle::Paragraph));
     e.state().check_invariants().unwrap();
 }
 
@@ -193,17 +162,9 @@ fn links() {
     let l = Layout::build(e.state());
     let r = l.runs.iter().find(|r| r.link.is_some()).unwrap();
     assert_eq!((r.start, r.end), (4, 8));
-    assert_eq!(
-        e.state().link_at_selection().as_deref(),
-        Some("https://example.com")
-    );
+    assert_eq!(e.state().link_at_selection().as_deref(), Some("https://example.com"));
     e.dispatch(Command::ToggleLink(None));
-    assert!(
-        Layout::build(e.state())
-            .runs
-            .iter()
-            .all(|r| r.link.is_none())
-    );
+    assert!(Layout::build(e.state()).runs.iter().all(|r| r.link.is_none()));
 }
 
 #[test]
@@ -214,14 +175,7 @@ fn relinking_part_of_a_link_leaves_the_rest_alone() {
     select(&mut e, 1, 3);
     e.dispatch(Command::ToggleLink(Some("new".into())));
     let l = Layout::build(e.state());
-    let url_at = |off: usize| {
-        l.runs
-            .iter()
-            .find(|r| r.start <= off && off < r.end)
-            .unwrap()
-            .link
-            .clone()
-    };
+    let url_at = |off: usize| l.runs.iter().find(|r| r.start <= off && off < r.end).unwrap().link.clone();
     assert_eq!(url_at(0).as_deref(), Some("old"));
     assert_eq!(url_at(1).as_deref(), Some("new"));
     assert_eq!(url_at(2).as_deref(), Some("new"));
@@ -232,14 +186,7 @@ fn relinking_part_of_a_link_leaves_the_rest_alone() {
     select(&mut e, 1, 3);
     e.dispatch(Command::ToggleLink(None));
     let l = Layout::build(e.state());
-    let url_at = |off: usize| {
-        l.runs
-            .iter()
-            .find(|r| r.start <= off && off < r.end)
-            .unwrap()
-            .link
-            .clone()
-    };
+    let url_at = |off: usize| l.runs.iter().find(|r| r.start <= off && off < r.end).unwrap().link.clone();
     assert_eq!(url_at(0).as_deref(), Some("old"));
     assert_eq!(url_at(1), None);
     assert_eq!(url_at(2), None);
@@ -284,10 +231,7 @@ fn list_nesting_is_unlimited_by_default() {
 #[test]
 fn list_nesting_and_indent_can_be_capped_by_the_host() {
     let mut e = editor_with("deep");
-    e.set_limits(Limits {
-        max_list_depth: Some(3),
-        max_indent: Some(2),
-    });
+    e.set_limits(Limits { max_list_depth: Some(3), max_indent: Some(2) });
     e.dispatch(Command::ToggleList(ListType::Bullet));
     for _ in 0..10 {
         e.dispatch(Command::Indent);
@@ -296,10 +240,7 @@ fn list_nesting_and_indent_can_be_capped_by_the_host() {
 
     // plain blocks honour max_indent, and the cap survives loading a document
     let mut p = editor_with("para");
-    p.set_limits(Limits {
-        max_list_depth: None,
-        max_indent: Some(2),
-    });
+    p.set_limits(Limits { max_list_depth: None, max_indent: Some(2) });
     for _ in 0..10 {
         p.dispatch(Command::Indent);
     }
@@ -316,10 +257,7 @@ fn read_only_editor_ignores_history_and_edits() {
     e.dispatch(Command::InsertText("!".into()));
     assert!(e.can_undo());
     e.set_editable(false);
-    assert!(
-        !e.dispatch(Command::Undo),
-        "undo must not mutate a read-only editor"
-    );
+    assert!(!e.dispatch(Command::Undo), "undo must not mutate a read-only editor");
     assert!(!e.dispatch(Command::Redo));
     assert!(!e.dispatch(Command::InsertText("x".into())));
     assert_eq!(lines(&e), ["keep!"]);
@@ -352,10 +290,7 @@ fn code_block_enter_inserts_linebreak_and_double_enter_exits() {
     e.dispatch(Command::InsertParagraph);
     e.dispatch(Command::InsertParagraph);
     assert_eq!(lines(&e).len(), 2);
-    assert_eq!(
-        Layout::build(e.state()).lines[1].style,
-        BlockStyle::Paragraph
-    );
+    assert_eq!(Layout::build(e.state()).lines[1].style, BlockStyle::Paragraph);
 }
 
 #[test]
@@ -434,23 +369,14 @@ fn markdown_shortcuts() {
     e.add_plugin(Box::new(MarkdownShortcutsPlugin::default()));
     e.dispatch(Command::InsertText("#".into()));
     e.dispatch(Command::InsertText(" ".into()));
-    assert!(matches!(
-        Layout::build(e.state()).lines[0].style,
-        BlockStyle::Heading(HeadingTag::H1)
-    ));
+    assert!(matches!(Layout::build(e.state()).lines[0].style, BlockStyle::Heading(HeadingTag::H1)));
     e.dispatch(Command::InsertText("Hi".into()));
     assert_eq!(lines(&e), ["Hi"]);
 
     e.dispatch(Command::InsertParagraph); // new paragraph (end of heading)
     e.dispatch(Command::InsertText("- ".into()));
     let l = Layout::build(e.state());
-    assert!(matches!(
-        l.lines[1].style,
-        BlockStyle::ListItem {
-            list_type: ListType::Bullet,
-            ..
-        }
-    ));
+    assert!(matches!(l.lines[1].style, BlockStyle::ListItem { list_type: ListType::Bullet, .. }));
 }
 
 #[test]

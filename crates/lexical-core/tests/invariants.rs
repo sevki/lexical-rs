@@ -24,48 +24,18 @@ fn random_command(r: &mut Rng) -> Command {
         0..=4 => Command::InsertText(WORDS[r.below(WORDS.len())].into()),
         5 => Command::InsertParagraph,
         6 => Command::InsertLineBreak,
-        7 | 8 => Command::DeleteCharacter {
-            backward: r.below(2) == 0,
-        },
-        9 => Command::DeleteWord {
-            backward: r.below(2) == 0,
-        },
-        10 => Command::DeleteLine {
-            backward: r.below(2) == 0,
-        },
-        11 => Command::FormatText(
-            [
-                TextFormat::BOLD,
-                TextFormat::ITALIC,
-                TextFormat::CODE,
-                TextFormat::SUBSCRIPT,
-                TextFormat::SUPERSCRIPT,
-            ][r.below(5)],
-        ),
+        7 | 8 => Command::DeleteCharacter { backward: r.below(2) == 0 },
+        9 => Command::DeleteWord { backward: r.below(2) == 0 },
+        10 => Command::DeleteLine { backward: r.below(2) == 0 },
+        11 => Command::FormatText([TextFormat::BOLD, TextFormat::ITALIC, TextFormat::CODE, TextFormat::SUBSCRIPT, TextFormat::SUPERSCRIPT][r.below(5)]),
         12 => Command::SetBlockType(
-            [
-                BlockType::Paragraph,
-                BlockType::Quote,
-                BlockType::Code,
-                BlockType::Heading(HeadingTag::H2),
-            ][r.below(4)],
+            [BlockType::Paragraph, BlockType::Quote, BlockType::Code, BlockType::Heading(HeadingTag::H2)][r.below(4)],
         ),
-        13 => {
-            Command::ToggleList([ListType::Bullet, ListType::Number, ListType::Check][r.below(3)])
-        }
-        14 => Command::ToggleLink(if r.below(3) == 0 {
-            None
-        } else {
-            Some("https://x.test".into())
-        }),
+        13 => Command::ToggleList([ListType::Bullet, ListType::Number, ListType::Check][r.below(3)]),
+        14 => Command::ToggleLink(if r.below(3) == 0 { None } else { Some("https://x.test".into()) }),
         15 => Command::Indent,
         16 => Command::Outdent,
-        17 => Command::Paste(format!(
-            "{}\n{}\n{}",
-            WORDS[r.below(8)],
-            WORDS[r.below(8)],
-            WORDS[r.below(8)]
-        )),
+        17 => Command::Paste(format!("{}\n{}\n{}", WORDS[r.below(8)], WORDS[r.below(8)], WORDS[r.below(8)])),
         18 => Command::Undo,
         19 => Command::Redo,
         20 => Command::ToggleCheck,
@@ -111,23 +81,15 @@ fn run_trace(seed: u64, steps: usize, markdown: bool) {
         if step % 7 == 0 {
             let json = e.state().to_json();
             let back = EditorState::from_json(&json).expect("reload");
-            back.check_invariants()
-                .unwrap_or_else(|m| panic!("seed {seed} step {step}: reload: {m}"));
-            assert_eq!(
-                back.to_json(),
-                json,
-                "seed {seed} step {step}: JSON not stable"
-            );
+            back.check_invariants().unwrap_or_else(|m| panic!("seed {seed} step {step}: reload: {m}"));
+            assert_eq!(back.to_json(), json, "seed {seed} step {step}: JSON not stable");
         }
     }
 }
 
 /// Number of random traces; raise with `LEXICAL_FUZZ_SEEDS=5000` for a deeper sweep.
 fn seeds(default: u64) -> u64 {
-    std::env::var("LEXICAL_FUZZ_SEEDS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
+    std::env::var("LEXICAL_FUZZ_SEEDS").ok().and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
 #[test]

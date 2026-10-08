@@ -105,9 +105,7 @@ impl Editor {
 impl EditorState {
     pub fn select_all(&mut self) -> Result<()> {
         let blocks = self.line_blocks();
-        let (Some(&f), Some(&l)) = (blocks.first(), blocks.last()) else {
-            return Ok(());
-        };
+        let (Some(&f), Some(&l)) = (blocks.first(), blocks.last()) else { return Ok(()) };
         let end = self.node(l).children.len();
         self.set_selection_points(crate::Point::element(f, 0), crate::Point::element(l, end));
         Ok(())

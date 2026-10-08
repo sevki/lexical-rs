@@ -45,9 +45,7 @@ impl Editor {
             }
             for k in std::mem::take(&mut queue) {
                 let Some(n) = s.get(k) else { continue };
-                let Some(ts) = self.transforms.get(&n.node_type()) else {
-                    continue;
-                };
+                let Some(ts) = self.transforms.get(&n.node_type()) else { continue };
                 for (_, t) in ts {
                     if !s.contains(k) {
                         break;
@@ -65,28 +63,15 @@ impl Editor {
         let prev = std::mem::replace(&mut self.state, pending);
         let dirty: BTreeSet<NodeKey> = self.state.dirty.clone();
         let content = !tags.contains(&Tag::SelectionOnly)
-            && dirty
-                .iter()
-                .any(|k| self.state.contains(*k) || prev.contains(*k));
-        let created: Vec<_> = dirty
-            .iter()
-            .copied()
-            .filter(|k| self.state.contains(*k) && !prev.contains(*k))
-            .collect();
-        let destroyed: Vec<_> = dirty
-            .iter()
-            .copied()
-            .filter(|k| prev.contains(*k) && !self.state.contains(*k))
-            .collect();
+            && dirty.iter().any(|k| self.state.contains(*k) || prev.contains(*k));
+        let created: Vec<_> =
+            dirty.iter().copied().filter(|k| self.state.contains(*k) && !prev.contains(*k)).collect();
+        let destroyed: Vec<_> =
+            dirty.iter().copied().filter(|k| prev.contains(*k) && !self.state.contains(*k)).collect();
         self.state.dirty.clear();
 
         let mut hooks = std::mem::take(&mut self.commit_hooks);
-        let info = CommitInfo {
-            prev: &prev,
-            state: &self.state,
-            tags,
-            content_changed: content,
-        };
+        let info = CommitInfo { prev: &prev, state: &self.state, tags, content_changed: content };
         for (_, h) in hooks.iter_mut() {
             h(&info);
         }

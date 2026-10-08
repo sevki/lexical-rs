@@ -7,12 +7,8 @@ use crate::selection::{Point, PointKind};
 impl EditorState {
     /// Detach `key` from its parent. The subtree stays alive so it can be re-linked.
     pub(crate) fn unlink(&mut self, key: NodeKey) {
-        let Some(parent) = self.parent(key) else {
-            return;
-        };
-        let idx = self
-            .index_in_parent(key)
-            .expect("child missing from parent");
+        let Some(parent) = self.parent(key) else { return };
+        let idx = self.index_in_parent(key).expect("child missing from parent");
         self.mark_dirty(key);
         self.dirty.insert(parent);
         self.nodes.get_mut(&parent).unwrap().children.remove(idx);
@@ -23,11 +19,7 @@ impl EditorState {
     pub(crate) fn link_at(&mut self, parent: NodeKey, index: usize, child: NodeKey) {
         debug_assert!(self.node(child).parent.is_none(), "child must be detached");
         let idx = index.min(self.node(parent).children.len());
-        self.nodes
-            .get_mut(&parent)
-            .unwrap()
-            .children
-            .insert(idx, child);
+        self.nodes.get_mut(&parent).unwrap().children.insert(idx, child);
         self.nodes.get_mut(&child).unwrap().parent = Some(parent);
         self.dirty.insert(parent);
         self.dirty.insert(child);

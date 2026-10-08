@@ -51,13 +51,11 @@ impl EditorState {
     /// `(start, end)` of the selection in document order.
     pub fn ordered_points(&self) -> Result<(Point, Point)> {
         let sel = self.require_selection()?;
-        Ok(
-            if self.point_cmp(&sel.anchor, &sel.focus) == std::cmp::Ordering::Greater {
-                (sel.focus, sel.anchor)
-            } else {
-                (sel.anchor, sel.focus)
-            },
-        )
+        Ok(if self.point_cmp(&sel.anchor, &sel.focus) == std::cmp::Ordering::Greater {
+            (sel.focus, sel.anchor)
+        } else {
+            (sel.anchor, sel.focus)
+        })
     }
 
     pub fn is_backward(&self) -> bool {
@@ -69,9 +67,7 @@ impl EditorState {
     /// Set a collapsed selection and refresh pending format from the node there.
     pub fn set_caret(&mut self, p: Point) {
         let fmt = self.format_at(&p);
-        let sel = self
-            .selection
-            .get_or_insert_with(|| Selection::collapsed(p));
+        let sel = self.selection.get_or_insert_with(|| Selection::collapsed(p));
         sel.anchor = p;
         sel.focus = p;
         if let Some(f) = fmt {
@@ -96,9 +92,7 @@ impl EditorState {
 
     fn format_at(&self, p: &Point) -> Option<TextFormat> {
         if p.kind == PointKind::Text {
-            self.get(p.key)
-                .filter(|n| n.is_text())
-                .map(|n| n.text_format())
+            self.get(p.key).filter(|n| n.is_text()).map(|n| n.text_format())
         } else {
             None
         }
@@ -106,9 +100,7 @@ impl EditorState {
 
     /// Make sure selection points reference live nodes with in-range offsets.
     pub(crate) fn validate_selection(&mut self) {
-        let Some(sel) = self.selection.clone() else {
-            return;
-        };
+        let Some(sel) = self.selection.clone() else { return };
         let fix = |s: &EditorState, p: Point| -> Point {
             match s.get(p.key) {
                 Some(n) if p.kind == PointKind::Text && n.is_text() => {

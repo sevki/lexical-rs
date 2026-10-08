@@ -155,10 +155,7 @@ impl Editor {
         ListenerId(self.next_id)
     }
 
-    pub fn register_update_listener(
-        &mut self,
-        f: impl FnMut(&UpdateEvent) + 'static,
-    ) -> ListenerId {
+    pub fn register_update_listener(&mut self, f: impl FnMut(&UpdateEvent) + 'static) -> ListenerId {
         let id = self.fresh_id();
         self.update_listeners.push((id, Box::new(f)));
         id
@@ -200,10 +197,7 @@ impl Editor {
         f: impl Fn(&mut EditorState, NodeKey) -> Result<()> + 'static,
     ) -> ListenerId {
         let id = self.fresh_id();
-        self.transforms
-            .entry(ty)
-            .or_default()
-            .push((id, Box::new(f)));
+        self.transforms.entry(ty).or_default().push((id, Box::new(f)));
         id
     }
 

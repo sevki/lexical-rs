@@ -46,44 +46,25 @@ impl EditorState {
             v
         };
         let (ca, cb) = (chain(self, a.parent), chain(self, b.parent));
-        let common = *ca
-            .iter()
-            .find(|k| cb.contains(k))
-            .expect("no common ancestor");
+        let common = *ca.iter().find(|k| cb.contains(k)).expect("no common ancestor");
         let pa = ca.iter().position(|&k| k == common).unwrap();
         let pb = cb.iter().position(|&k| k == common).unwrap();
 
         let mut doomed: Vec<NodeKey> = vec![];
         // Middle: between the two paths inside `common`.
-        let lo = if pa == 0 {
-            ia
-        } else {
-            self.index_in_parent(ca[pa - 1]).unwrap() + 1
-        };
-        let hi = if pb == 0 {
-            ib
-        } else {
-            self.index_in_parent(cb[pb - 1]).unwrap()
-        };
+        let lo = if pa == 0 { ia } else { self.index_in_parent(ca[pa - 1]).unwrap() + 1 };
+        let hi = if pb == 0 { ib } else { self.index_in_parent(cb[pb - 1]).unwrap() };
         if hi > lo {
             doomed.extend_from_slice(&self.node(common).children[lo..hi]);
         }
         // Left tail.
         for k in 0..pa {
-            let from = if k == 0 {
-                ia
-            } else {
-                self.index_in_parent(ca[k - 1]).unwrap() + 1
-            };
+            let from = if k == 0 { ia } else { self.index_in_parent(ca[k - 1]).unwrap() + 1 };
             doomed.extend_from_slice(&self.node(ca[k]).children[from..]);
         }
         // Right head.
         for k in 0..pb {
-            let to = if k == 0 {
-                ib
-            } else {
-                self.index_in_parent(cb[k - 1]).unwrap()
-            };
+            let to = if k == 0 { ib } else { self.index_in_parent(cb[k - 1]).unwrap() };
             doomed.extend_from_slice(&self.node(cb[k]).children[..to]);
         }
         for k in doomed {
@@ -130,9 +111,7 @@ impl EditorState {
             return self.remove_text();
         }
         let pt = self.inline_point(&sel.anchor);
-        let Some(block) = self.line_block_of(pt.key) else {
-            return Ok(());
-        };
+        let Some(block) = self.line_block_of(pt.key) else { return Ok(()) };
         let content = self.block_content(block);
         let off = self.block_offset(&content, &pt);
 
@@ -149,32 +128,20 @@ impl EditorState {
         if (backward && off == 0) || (!backward && off == content.len) {
             let blocks = self.line_blocks();
             let i = blocks.iter().position(|&b| b == block).unwrap();
-            let other = if backward {
-                i.checked_sub(1)
-            } else {
-                Some(i + 1)
-            }
-            .and_then(|j| blocks.get(j).copied());
+            let other = if backward { i.checked_sub(1) } else { Some(i + 1) }
+                .and_then(|j| blocks.get(j).copied());
             let Some(other) = other else { return Ok(()) };
             let (a, f) = if backward {
                 (Point::element(other, self.node(other).children.len()), pt)
             } else {
                 (pt, Point::element(other, 0))
             };
-            self.selection = Some(Selection {
-                anchor: a,
-                focus: f,
-                ..sel
-            });
+            self.selection = Some(Selection { anchor: a, focus: f, ..sel });
             return self.remove_text();
         }
         let target = step_offset(&content.text, off, backward, gran);
         let tp = self.block_point(block, &content, target);
-        self.selection = Some(Selection {
-            anchor: pt,
-            focus: tp,
-            ..sel
-        });
+        self.selection = Some(Selection { anchor: pt, focus: tp, ..sel });
         self.remove_text()
     }
 }
@@ -185,18 +152,12 @@ pub(crate) fn step_offset(text: &str, off: usize, backward: bool, gran: Granular
     let to_chars = |b: usize| text[..b].chars().count();
     match gran {
         Granularity::Character => {
-            let idx: Vec<usize> = text
-                .grapheme_indices(true)
-                .map(|(i, _)| i)
-                .chain([text.len()])
-                .collect();
+            let idx: Vec<usize> =
+                text.grapheme_indices(true).map(|(i, _)| i).chain([text.len()]).collect();
             let b = if backward {
                 idx.iter().rev().find(|&&i| i < byte).copied().unwrap_or(0)
             } else {
-                idx.iter()
-                    .find(|&&i| i > byte)
-                    .copied()
-                    .unwrap_or(text.len())
+                idx.iter().find(|&&i| i > byte).copied().unwrap_or(text.len())
             };
             to_chars(b)
         }
@@ -226,9 +187,7 @@ pub(crate) fn step_offset(text: &str, off: usize, backward: bool, gran: Granular
             if backward {
                 text[..byte].rfind('\n').map_or(0, |i| to_chars(i + 1))
             } else {
-                text[byte..]
-                    .find('\n')
-                    .map_or(text.chars().count(), |i| to_chars(byte + i))
+                text[byte..].find('\n').map_or(text.chars().count(), |i| to_chars(byte + i))
             }
         }
     }

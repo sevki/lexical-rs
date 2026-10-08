@@ -55,9 +55,7 @@ impl EditorState {
             NodeData::Quote => NodeData::Paragraph,
             NodeData::ListItem { .. } => {
                 let kind = self.list_type_of_item(block);
-                NodeData::ListItem {
-                    checked: (kind == Some(ListType::Check)).then_some(false),
-                }
+                NodeData::ListItem { checked: (kind == Some(ListType::Check)).then_some(false) }
             }
             d => d,
         };
@@ -93,10 +91,7 @@ impl EditorState {
             for k in tail {
                 self.append_child(clone, k);
             }
-            b = Boundary {
-                parent: self.parent(parent).unwrap(),
-                before: Some(clone),
-            };
+            b = Boundary { parent: self.parent(parent).unwrap(), before: Some(clone) };
         }
         (block, self.boundary_index(&b))
     }

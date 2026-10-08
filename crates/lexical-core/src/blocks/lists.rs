@@ -23,9 +23,7 @@ impl EditorState {
         if blocks.is_empty() {
             return Ok(());
         }
-        let all_in = blocks
-            .iter()
-            .all(|&b| self.list_type_of_item(b) == Some(ty));
+        let all_in = blocks.iter().all(|&b| self.list_type_of_item(b) == Some(ty));
         if all_in {
             for b in blocks {
                 self.unlist_item(b);
@@ -41,10 +39,7 @@ impl EditorState {
                 checked: (ty == ListType::Check).then_some(false),
             });
             let align = self.node(b).align;
-            let list = self.create_node(NodeData::List {
-                list_type: ty,
-                start: 1,
-            });
+            let list = self.create_node(NodeData::List { list_type: ty, start: 1 });
             self.node_mut(item).align = align;
             self.insert_after(b, list);
             self.append_child(list, item);
@@ -58,12 +53,8 @@ impl EditorState {
     /// Give `item` list type `ty` without touching its siblings: the list is split
     /// around the item (head / item / tail) unless the item is alone in it.
     fn retype_item(&mut self, item: NodeKey, ty: ListType) {
-        let Some(list) = self.parent(item) else {
-            return;
-        };
-        let NodeData::List { list_type, .. } = self.node(list).data else {
-            return;
-        };
+        let Some(list) = self.parent(item) else { return };
+        let NodeData::List { list_type, .. } = self.node(list).data else { return };
         if list_type == ty {
             return;
         }
@@ -77,10 +68,7 @@ impl EditorState {
         }
         let tail: Vec<_> = self.node(list).children[idx + 1..].to_vec();
         let tail_data = self.node(list).data.clone();
-        let mid = self.create_node(NodeData::List {
-            list_type: ty,
-            start: 1,
-        });
+        let mid = self.create_node(NodeData::List { list_type: ty, start: 1 });
         self.insert_after(list, mid);
         self.append_child(mid, item);
         if !tail.is_empty() {
@@ -101,11 +89,7 @@ impl EditorState {
         };
         for it in self.node(list).children.clone() {
             if let NodeData::ListItem { checked } = &mut self.node_mut(it).data {
-                *checked = if ty == ListType::Check {
-                    checked.or(Some(false))
-                } else {
-                    None
-                };
+                *checked = if ty == ListType::Check { checked.or(Some(false)) } else { None };
             }
         }
     }
@@ -113,19 +97,13 @@ impl EditorState {
     pub fn merge_adjacent_lists(&mut self) {
         loop {
             let mut merged = false;
-            let all: Vec<NodeKey> = self
-                .nodes
-                .keys()
-                .copied()
-                .filter(|&k| self.node(k).node_type() == NodeType::List)
-                .collect();
+            let all: Vec<NodeKey> =
+                self.nodes.keys().copied().filter(|&k| self.node(k).node_type() == NodeType::List).collect();
             for l in all {
                 if !self.contains(l) {
                     continue;
                 }
-                let Some(next) = self.next_sibling(l) else {
-                    continue;
-                };
+                let Some(next) = self.next_sibling(l) else { continue };
                 if self.node(next).node_type() != NodeType::List {
                     continue;
                 }
@@ -190,14 +168,7 @@ impl EditorState {
             let parent = self.parent(cur);
             self.remove(cur);
             match parent {
-                Some(p)
-                    if matches!(
-                        self.node(p).node_type(),
-                        NodeType::ListItem | NodeType::List
-                    ) =>
-                {
-                    cur = p
-                }
+                Some(p) if matches!(self.node(p).node_type(), NodeType::ListItem | NodeType::List) => cur = p,
                 _ => return,
             }
         }
@@ -213,44 +184,25 @@ impl EditorState {
 
     pub(super) fn is_wrapper(&self, item: NodeKey) -> bool {
         self.node(item).node_type() == NodeType::ListItem
-            && self
-                .node(item)
-                .children
-                .iter()
-                .any(|&c| self.node(c).node_type() == NodeType::List)
+            && self.node(item).children.iter().any(|&c| self.node(c).node_type() == NodeType::List)
     }
 
     /// Nesting depth of a list item: 0 for a top-level item.
     pub fn list_depth(&self, item: NodeKey) -> u32 {
-        let lists = self
-            .ancestors(item)
-            .iter()
-            .filter(|&&a| self.node(a).node_type() == NodeType::List)
-            .count();
+        let lists = self.ancestors(item).iter().filter(|&&a| self.node(a).node_type() == NodeType::List).count();
         lists.saturating_sub(1) as u32
     }
 
     pub(super) fn indent_item(&mut self, item: NodeKey) {
-        let Some(list) = self.parent(item) else {
-            return;
-        };
-        if self
-            .limits
-            .max_list_depth
-            .is_some_and(|max| self.list_depth(item) >= max)
-        {
+        let Some(list) = self.parent(item) else { return };
+        if self.limits.max_list_depth.is_some_and(|max| self.list_depth(item) >= max) {
             return;
         }
         let data = self.node(list).data.clone();
         let (prev, next) = (self.prev_sibling(item), self.next_sibling(item));
         // A wrapper may hold several lists (after a type change); join the adjacent one.
         let lists_of = |s: &EditorState, w: NodeKey| -> Vec<NodeKey> {
-            s.node(w)
-                .children
-                .iter()
-                .copied()
-                .filter(|&c| s.node(c).node_type() == NodeType::List)
-                .collect()
+            s.node(w).children.iter().copied().filter(|&c| s.node(c).node_type() == NodeType::List).collect()
         };
         if let Some(w) = prev.filter(|&w| self.is_wrapper(w)) {
             let nl = *lists_of(self, w).last().unwrap();

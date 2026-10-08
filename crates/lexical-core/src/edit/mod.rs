@@ -35,30 +35,18 @@ impl EditorState {
         match p.kind {
             PointKind::Element => {
                 let kids = &self.node(p.key).children;
-                Boundary {
-                    parent: p.key,
-                    before: kids.get(p.offset).copied(),
-                }
+                Boundary { parent: p.key, before: kids.get(p.offset).copied() }
             }
             PointKind::Text => {
                 let len = self.node(p.key).text_len();
                 let parent = self.parent(p.key).expect("text without parent");
                 if p.offset == 0 {
-                    Boundary {
-                        parent,
-                        before: Some(p.key),
-                    }
+                    Boundary { parent, before: Some(p.key) }
                 } else if p.offset >= len {
-                    Boundary {
-                        parent,
-                        before: self.next_sibling(p.key),
-                    }
+                    Boundary { parent, before: self.next_sibling(p.key) }
                 } else {
                     let pieces = self.split_text(p.key, &[p.offset]);
-                    Boundary {
-                        parent,
-                        before: Some(pieces[1]),
-                    }
+                    Boundary { parent, before: Some(pieces[1]) }
                 }
             }
         }
@@ -86,14 +74,8 @@ impl EditorState {
     /// Leaves (text/linebreak) between two boundaries, in document order.
     pub(crate) fn leaves_between(&self, a: &Boundary, b: &Boundary) -> Vec<NodeKey> {
         let (pre, end) = self.preorder();
-        let (pa, pb) = (
-            self.boundary_pos(a, &pre, &end),
-            self.boundary_pos(b, &pre, &end),
-        );
-        self.leaves()
-            .into_iter()
-            .filter(|k| pre[k] >= pa && pre[k] < pb)
-            .collect()
+        let (pa, pb) = (self.boundary_pos(a, &pre, &end), self.boundary_pos(b, &pre, &end));
+        self.leaves().into_iter().filter(|k| pre[k] >= pa && pre[k] < pb).collect()
     }
 
     /// Prefer a text point next to `(parent, idx)` over a bare element point.
