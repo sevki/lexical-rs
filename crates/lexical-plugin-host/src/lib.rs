@@ -8,9 +8,14 @@
 
 mod bindings;
 mod convert;
+mod document;
+mod document_bindings;
 mod error;
 mod ops;
 mod runtime;
+mod sandbox;
 
+pub use document::WasmDocumentPlugin;
 pub use error::{PluginError, Result};
-pub use runtime::{Budget, WasmPlugin};
+pub use runtime::WasmPlugin;
+pub use sandbox::Budget;

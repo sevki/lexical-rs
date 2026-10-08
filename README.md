@@ -10,6 +10,7 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 | [`lexical-adw`](crates/lexical-adw) | GTK4 / libadwaita views: `LexicalView` (editing surface), `Toolbar`, buffer reconciler, and a demo app. |
 | [`lexical-plugin`](crates/lexical-plugin) | The plugin SDK. Plugins are **WebAssembly components** implementing the WIT interface `lexical:editor/plugin` ([`wit/lexical.wit`](crates/lexical-plugin/wit/lexical.wit)): a pure function from a command or text node to a list of operations. `plugins/markdown-shortcuts` is the reference plugin. |
 | [`lexical-plugin-host`](crates/lexical-plugin-host) | Loads plugin components with wasmtime and adds them to an `Editor` (`WasmPlugin::load`). Plugins hold no handle to the editor and run under a per-call fuel budget and a memory cap. |
+| [`plugins/lexical-js-shim`](plugins/lexical-js-shim) | **Lexical for JavaScript as a plugin.** A component (JS engine + the real `lexical` packages, built with `jco componentize`) behind the coarser `document-plugin` WIT interface: the host sends the document as Lexical JSON plus the selection, the shim runs the command through unmodified Lexical plugins (`registerRichText`, `@lexical/markdown` shortcuts) in a headless editor, and the resulting document is applied as one ordinary update. Which JS plugins run is one file, `src/plugins.js`. |
 | [`lexical-sync`](crates/lexical-sync) | Real-time collaboration on [Loro](https://loro.dev): the document is flattened to one rich text (line-terminator characters carry block attributes, per-key marks carry inline formats), edits become minimal CRDT operations, remote updates are unflattened back into the editor. Local-only undo/redo, cursors that follow their text, and remote presence. |
 | [`verus/`](verus) | Formal proofs (Verus) in the style of [dafny-replay](https://github.com/metareflection/dafny-replay): generic **replay** (undo/redo) and **authority** (sync) kernels proved once, the editor as a domain with proved invariants and per-command laws, plus proofs for the view-sync algorithms. See [`verus/GUARANTEES.md`](verus/GUARANTEES.md). |
 
@@ -90,6 +91,13 @@ This is a redesign in Rust's idiom, **not a line-by-line translation** of the Sw
   expected blocks for every shortcut (and none for near misses), runs hundreds of random
   commands with it loaded checking document invariants, and checks that bad bytes, a starved
   fuel budget and a tiny memory cap are refused without harming the editor.
+* Lexical JS shim (`tests/lexical_js.rs`, needs node and npm access): the real
+  `@lexical/markdown` shortcuts turn typed `## ` and `- ` into a heading and a list inside the
+  component; plain typing, Enter and Backspace through Lexical JS give the same text as the
+  native engine; formatting goes through JS while Undo stays with the editor's own history;
+  a starved fuel budget fails the call and leaves the editor alone. Run it in release mode
+  (`cargo test --release -p lexical-plugin-host --test lexical_js`): compiling the 20 MB
+  component is slow in debug.
 * `lexical-adw`: a `harness = false` GTK test binary that drives the real input paths
   (IM commit, key handling, native selection, toolbar buttons) under Xvfb.
 * Visual regression (PRs only): CI renders fixed editor scenarios (formats, headings, lists,

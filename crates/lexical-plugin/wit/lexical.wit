@@ -110,3 +110,43 @@ interface plugin {
 world lexical-plugin {
     export plugin;
 }
+
+/// A second, coarser way to plug in: the plugin receives the whole document and returns the
+/// whole document. It exists so code written against another editor model, such as
+/// Lexical for JavaScript, can run unchanged behind a shim that keeps its own editor.
+/// It costs a document round trip per command, so prefer `plugin` for new plugins.
+interface document-plugin {
+    /// A place in the document. Blocks are those that hold inline content (paragraphs,
+    /// headings, quotes, code blocks, list items), counted in document order.
+    record position {
+        block: u32,
+        /// Characters from the start of the block; a line break counts as one.
+        offset: u32,
+    }
+
+    record document-selection {
+        anchor: position,
+        focus: position,
+    }
+
+    record document-outcome {
+        /// The document after the command, as Lexical JSON.
+        state: string,
+        selection: option<document-selection>,
+        handled: bool,
+    }
+
+    /// Run a command against `state`, a Lexical JSON document. Command names:
+    /// `insert-text` (payload: the text), `insert-paragraph`, `delete-backward`,
+    /// `delete-forward` and `format-text` (payload: `bold`, `italic`, ...).
+    run: func(
+        state: string,
+        selection: option<document-selection>,
+        command: string,
+        payload: string,
+    ) -> document-outcome;
+}
+
+world lexical-document-plugin {
+    export document-plugin;
+}

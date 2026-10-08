@@ -5,57 +5,14 @@ use crate::bindings::LexicalPlugin;
 use crate::convert::command_to_wit;
 use crate::error::{PluginError, Result};
 use crate::ops::{apply_in_transform, apply_to_editor, command_context, text_context};
+use crate::sandbox::{arm, load_error, prepare, record, Budget, HostState};
 use lexical_core::{Editor, ListenerId, NodeType, Plugin};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use wasmtime::component::{Component, Linker, ResourceTable};
-use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
-use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
-
-/// What one call into a plugin may consume before it is stopped.
-#[derive(Clone, Copy, Debug)]
-pub struct Budget {
-    /// Wasm instructions (roughly) per call.
-    pub fuel: u64,
-    /// Linear memory the plugin may grow to.
-    pub memory_bytes: usize,
-}
-
-impl Default for Budget {
-    fn default() -> Self {
-        Budget { fuel: 50_000_000, memory_bytes: 64 << 20 }
-    }
-}
-
-/// Fuel for instantiating a plugin and asking it for its `info`.
-const LOAD_FUEL: u64 = 500_000_000;
-
-/// Most failures kept per plugin; older ones are dropped so a plugin that fails on every
-/// command cannot make the host's memory grow without limit.
-const MAX_ERRORS: usize = 64;
-
-fn record(errors: &RefCell<Vec<PluginError>>, error: PluginError) {
-    let mut errors = errors.borrow_mut();
-    if errors.len() >= MAX_ERRORS {
-        errors.remove(0);
-    }
-    errors.push(error);
-}
+use wasmtime::Store;
 
 /// Deepest chain of plugin → command → plugin → command… before it is cut off.
 const MAX_REENTRY: u32 = 8;
-
-struct HostState {
-    wasi: WasiCtx,
-    table: ResourceTable,
-    limits: StoreLimits,
-}
-
-impl WasiView for HostState {
-    fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView { ctx: &mut self.wasi, table: &mut self.table }
-    }
-}
 
 struct Instance {
     store: Store<HostState>,
@@ -65,7 +22,7 @@ struct Instance {
 
 impl Instance {
     fn arm(&mut self) -> Result<()> {
-        self.store.set_fuel(self.budget.fuel).map_err(|e| PluginError::Call(e.to_string()))
+        arm(&mut self.store, self.budget)
     }
 
     fn handle_command(&mut self, cmd: w::Command, ctx: w::CommandContext) -> Result<w::Outcome> {
@@ -100,28 +57,10 @@ impl WasmPlugin {
     }
 
     pub fn load_with(bytes: &[u8], budget: Budget) -> Result<WasmPlugin> {
-        let load = |e: wasmtime::Error| PluginError::Load(format!("{e:#}"));
-        let mut config = Config::new();
-        config.consume_fuel(true);
-        let engine = Engine::new(&config).map_err(load)?;
-        let component = Component::new(&engine, bytes).map_err(load)?;
-
-        // WASI is linked because Rust's standard library imports it; the guest is given an
-        // empty context: no files, no environment, no network, no inherited stdio.
-        let mut linker = Linker::<HostState>::new(&engine);
-        wasmtime_wasi::p2::add_to_linker_sync(&mut linker).map_err(load)?;
-
-        let state = HostState {
-            wasi: WasiCtx::builder().build(),
-            table: ResourceTable::new(),
-            // A component is several core instances (the guest, adapters, shims).
-            limits: StoreLimitsBuilder::new().memory_size(budget.memory_bytes).instances(32).build(),
-        };
-        let mut store = Store::new(&engine, state);
-        store.limiter(|s| &mut s.limits);
-        // Starting the plugin gets a fixed allowance; the budget applies to each call.
-        store.set_fuel(LOAD_FUEL).map_err(load)?;
-        let plugin = LexicalPlugin::instantiate(&mut store, &component, &linker).map_err(load)?;
+        let mut sandbox = prepare(bytes, budget)?;
+        let plugin = LexicalPlugin::instantiate(&mut sandbox.store, &sandbox.component, &sandbox.linker)
+            .map_err(load_error)?;
+        let mut store = sandbox.store;
         let info = plugin
             .lexical_editor_plugin()
             .call_info(&mut store)

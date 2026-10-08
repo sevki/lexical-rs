@@ -51,7 +51,22 @@ jobs:
             .
             plugins/markdown-shortcuts
             plugins/command-fixture
-      - run: cargo test -p lexical-plugin-host
+      - run: cargo test -p lexical-plugin-host --test wasm
+
+  lexical-js:
+    name: Lexical for JavaScript as a plugin (JS-in-Wasm shim)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugins/lexical-js-shim/package-lock.json
+      # Release mode: compiling the ~20 MB JavaScript runtime component is slow in debug.
+      - run: cargo test --release -p lexical-plugin-host --test lexical_js
 
   gtk:
     name: lexical-adw (GTK4 / libadwaita, headless)
