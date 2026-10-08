@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lexical Collaboration Demo
+Comment=Two synced editors that merge offline edits
+Exec=lexical-collab
+Icon=io.github.sevki.LexicalDemo
+Terminal=false
+Categories=Utility;TextEditor;GTK;

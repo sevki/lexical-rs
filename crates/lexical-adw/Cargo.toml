@@ -14,6 +14,9 @@ gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
 # runtime do not compile one.
 lexical-wasmtime = { path = "../lexical-wasmtime", optional = true }
 
+[dev-dependencies]
+lexical-sync = { path = "../lexical-sync" }
+
 [features]
 plugins = ["dep:lexical-wasmtime"]
 
