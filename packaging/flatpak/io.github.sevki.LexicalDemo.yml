@@ -1,0 +1,37 @@
+app-id: io.github.sevki.LexicalDemo
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: lexical-demo
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+modules:
+  - name: lexical-demo
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      # Cargo fetches crates during the build. That is fine for a bundle built in CI;
+      # Flathub itself would need vendored sources (flatpak-cargo-generator).
+      build-args:
+        - --share=network
+      env:
+        CARGO_HOME: /run/build/lexical-demo/cargo
+    build-commands:
+      - cargo build --release -p lexical-adw --example demo --example collab
+      - install -Dm755 target/release/examples/demo /app/bin/lexical-demo
+      - install -Dm755 target/release/examples/collab /app/bin/lexical-collab
+      - install -Dm644 packaging/flatpak/io.github.sevki.LexicalDemo.desktop /app/share/applications/io.github.sevki.LexicalDemo.desktop
+      - install -Dm644 packaging/flatpak/io.github.sevki.LexicalDemo.Collab.desktop /app/share/applications/io.github.sevki.LexicalDemo.Collab.desktop
+      - install -Dm644 packaging/flatpak/io.github.sevki.LexicalDemo.metainfo.xml /app/share/metainfo/io.github.sevki.LexicalDemo.metainfo.xml
+      - install -Dm644 packaging/flatpak/io.github.sevki.LexicalDemo.svg /app/share/icons/hicolor/scalable/apps/io.github.sevki.LexicalDemo.svg
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - target
+          - .git

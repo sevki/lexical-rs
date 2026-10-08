@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.sevki.LexicalDemo</id>
+  <name>Lexical Demo</name>
+  <summary>Demo apps for the Lexical rich text engine, ported to Rust</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <url type="homepage">https://github.com/sevki/lexical-rs</url>
+  <description>
+    <p>A playground for lexical-rs: a rich text editor with a formatting toolbar and a live view of the Lexical JSON, plus a collaboration demo with two editors that sync and merge offline edits.</p>
+  </description>
+  <launchable type="desktop-id">io.github.sevki.LexicalDemo.desktop</launchable>
+  <provides><binary>lexical-demo</binary><binary>lexical-collab</binary></provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2026-10-08" />
+  </releases>
+</component>

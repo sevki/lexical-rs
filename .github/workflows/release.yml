@@ -1,0 +1,42 @@
+name: release
+
+# Pushing a tag such as v0.1.0 builds the demo apps as a Flatpak bundle and attaches it to
+# a GitHub release. The workflow can also be run by hand to get the bundle as an artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flatpak:
+    name: Flatpak bundle
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the release and upload the bundle
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - name: Build
+        run: |
+          flatpak-builder --user --force-clean --install-deps-from=flathub \
+            --repo=repo build packaging/flatpak/io.github.sevki.LexicalDemo.yml
+          flatpak build-bundle repo lexical-demo.flatpak io.github.sevki.LexicalDemo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexical-demo.flatpak
+          path: lexical-demo.flatpak
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes \
+            --title "$GITHUB_REF_NAME" lexical-demo.flatpak \
+            || gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber lexical-demo.flatpak

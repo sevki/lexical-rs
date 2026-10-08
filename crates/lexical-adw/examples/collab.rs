@@ -10,7 +10,7 @@ use lexical_sync::Collab;
 use std::cell::Cell;
 use std::rc::Rc;
 
-const APP_ID: &str = "io.github.sevki.LexicalCollabDemo";
+const APP_ID: &str = "io.github.sevki.LexicalDemo.Collab";
 
 struct Peer {
     name: &'static str,

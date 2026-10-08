@@ -30,6 +30,19 @@ xvfb-run -a dbus-run-session -- cargo test -p lexical-adw   # headless GTK tests
 verus/verify.sh                             # proofs (needs Verus)
 ```
 
+## Download the demo
+
+Tagged releases (`v*`) carry a Flatpak bundle with both demo apps:
+
+```sh
+flatpak install --user lexical-demo.flatpak     # GNOME 49 runtime is pulled from Flathub
+flatpak run io.github.sevki.LexicalDemo                              # editor playground
+flatpak run --command=lexical-collab io.github.sevki.LexicalDemo     # collaboration demo
+```
+
+To build it yourself: `flatpak-builder --user --install-deps-from=flathub --repo=repo build packaging/flatpak/io.github.sevki.LexicalDemo.yml`
+(the build downloads crates, so it needs network access).
+
 ## How it maps to Lexical iOS
 
 | Lexical iOS | lexical-rs |
