@@ -13,14 +13,23 @@ use crate::node::*;
 use crate::selection::{Point, Selection};
 use std::collections::{BTreeSet, HashMap};
 
+///
+/// With the `jetstream` feature this type is a JetStream `WireFormat`. Decoding does not
+/// check the arena, so bytes from an untrusted source must go through
+/// [`EditorState::from_wire_bytes`] (or be followed by [`EditorState::check_wire`]).
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
 pub struct EditorState {
+    // Encoded in key order (canonical bytes) with a `u32` count, not JetStream's `u16`.
+    #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Map)))]
     pub(crate) nodes: HashMap<NodeKey, Node>,
     pub selection: Option<Selection>,
     /// Optional editing caps; host configuration rather than document content, so it
     /// is not serialized and survives `Editor::set_state`.
+    #[cfg_attr(feature = "jetstream", jetstream(skip))]
     pub limits: Limits,
     next_key: u64,
+    #[cfg_attr(feature = "jetstream", jetstream(skip))]
     pub(crate) dirty: BTreeSet<NodeKey>,
 }
 
@@ -146,6 +155,12 @@ impl EditorState {
         if let Some(p) = self.nodes.get(&key).and_then(|n| n.parent) {
             self.dirty.insert(p);
         }
+    }
+
+    /// The key the next created node will get (always above every existing key).
+    #[cfg(feature = "jetstream")]
+    pub(crate) fn next_key(&self) -> u64 {
+        self.next_key
     }
 
     /// Forget which nodes changed; for code that builds a whole document outside an update.
