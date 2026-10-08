@@ -29,12 +29,19 @@ impl EditorState {
                 m.insert("detail".into(), (*detail).into());
             }
             NodeData::LineBreak => {}
+            NodeData::Unknown { json } => {
+                return serde_json::from_str(json).unwrap_or(Value::Null);
+            }
             d => {
                 let kids: Vec<Value> = n.children.iter().map(|&c| self.node_json(c)).collect();
                 m.insert("children".into(), kids.into());
                 m.insert("direction".into(), "ltr".into());
                 m.insert("format".into(), n.align.as_str().into());
                 m.insert("indent".into(), n.indent.into());
+                if matches!(d, NodeData::Paragraph) {
+                    m.insert("textFormat".into(), n.text_format.bits().into());
+                    m.insert("textStyle".into(), n.text_style.clone().into());
+                }
                 match d {
                     NodeData::Heading(t) => {
                         m.insert("tag".into(), t.as_str().into());
@@ -48,9 +55,12 @@ impl EditorState {
                         m.insert("tag".into(), if *list_type == ListType::Number { "ol" } else { "ul" }.into());
                     }
                     NodeData::ListItem { checked } => {
-                        let value = self
-                            .index_in_parent(key)
-                            .map_or(1, |i| i + 1);
+                        // Lexical numbers items from the list's `start`.
+                        let start = match n.parent.map(|p| &self.node(p).data) {
+                            Some(NodeData::List { start, .. }) => *start,
+                            _ => 1,
+                        };
+                        let value = start + self.index_in_parent(key).unwrap_or(0) as u32;
                         m.insert("value".into(), value.into());
                         if let Some(c) = checked {
                             m.insert("checked".into(), (*c).into());
@@ -101,7 +111,9 @@ impl EditorState {
         let ty = v.get("type").and_then(Value::as_str).ok_or_else(|| Error::InvalidJson("node without type".into()))?;
         let str_of = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
         let data = match ty {
-            "text" => NodeData::Text {
+            // `tab` (a text node holding "\t") and `code-highlight` (text inside a code block)
+            // are text subclasses in Lexical; here they are plain text.
+            "text" | "tab" | "code-highlight" => NodeData::Text {
                 text: str_of("text").unwrap_or_default(),
                 format: TextFormat::from_bits_truncate(v.get("format").and_then(Value::as_u64).unwrap_or(0) as u32),
                 style: str_of("style").unwrap_or_default(),
@@ -126,13 +138,15 @@ impl EditorState {
                 rel: str_of("rel"),
                 title: str_of("title"),
             },
-            other => return Err(Error::InvalidJson(format!("unknown node type {other:?}"))),
+            _ => NodeData::Unknown { json: v.to_string() },
         };
         let is_el = data.is_element();
         let key = self.create_node(data);
         if is_el {
             let n = self.node_mut(key);
             n.indent = v.get("indent").and_then(Value::as_u64).unwrap_or(0) as u32;
+            n.text_format = TextFormat::from_bits_truncate(v.get("textFormat").and_then(Value::as_u64).unwrap_or(0) as u32);
+            n.text_style = str_of("textStyle").unwrap_or_default();
             n.align = Align::parse(v.get("format").and_then(Value::as_str).unwrap_or(""));
             for c in v.get("children").and_then(Value::as_array).into_iter().flatten() {
                 let ck = self.build_node(c)?;

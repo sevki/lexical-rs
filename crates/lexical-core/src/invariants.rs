@@ -113,7 +113,7 @@ impl EditorState {
         };
         use NodeType::*;
         match n.node_type() {
-            Root => kinds(&|t| matches!(t, Paragraph | Heading | Quote | Code | List), "root holds blocks"),
+            Root => kinds(&|t| matches!(t, Paragraph | Heading | Quote | Code | List | Unknown), "root holds blocks"),
             List => {
                 kinds(&|t| t == ListItem, "list holds items")?;
                 let is_check = matches!(n.data, NodeData::List { list_type: ListType::Check, .. });
@@ -135,13 +135,13 @@ impl EditorState {
                 if nested > 0 && nested != n.children.len() {
                     return Err(format!("list item {k} mixes nested lists and inline content"));
                 }
-                kinds(&|t| matches!(t, Text | LineBreak | Link | List), "list item content")
+                kinds(&|t| matches!(t, Text | LineBreak | Link | List | Unknown), "list item content")
             }
             Paragraph | Heading | Quote | Code => {
-                kinds(&|t| matches!(t, Text | LineBreak | Link), "block holds inline content")
+                kinds(&|t| matches!(t, Text | LineBreak | Link | Unknown), "block holds inline content")
             }
-            Link => kinds(&|t| matches!(t, Text | LineBreak), "link holds text"),
-            Text | LineBreak => Ok(()),
+            Link => kinds(&|t| matches!(t, Text | LineBreak | Unknown), "link holds text"),
+            Text | LineBreak | Unknown => Ok(()),
         }
     }
 }
