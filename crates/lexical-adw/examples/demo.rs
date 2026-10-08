@@ -15,10 +15,12 @@ const APP_ID: &str = "io.github.sevki.LexicalDemo";
 ///  cargo run -p lexical-adw --features plugins --example demo`.
 #[cfg(feature = "plugins")]
 fn load_plugins(editor: &mut Editor) {
-    use lexical_plugin_host::WasmPlugin;
     let Some(paths) = std::env::var_os("LEXICAL_PLUGINS") else { return };
     for path in std::env::split_paths(&paths) {
-        match std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| WasmPlugin::load(&b).map_err(|e| e.to_string())) {
+        match std::fs::read(&path)
+            .map_err(|e| e.to_string())
+            .and_then(|b| lexical_plugin_wasmtime::load(&b).map_err(|e| e.to_string()))
+        {
             Ok(plugin) => editor.add_plugin(Box::new(plugin)),
             Err(e) => eprintln!("plugin {}: {e}", path.display()),
         }

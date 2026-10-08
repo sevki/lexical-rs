@@ -1,6 +1,6 @@
 //! What a plugin is told, and how the operations it answers with are carried out.
 
-use crate::bindings::lexical::editor::types as w;
+use lexical_plugin as w;
 use crate::convert::{block_kind, command_from_wit, target_from_wit, Target};
 use lexical_core::{Editor, EditorState, NodeKey, NodeType, Point, PointKind, Result};
 

@@ -38,20 +38,24 @@ jobs:
         run: LEXICAL_FUZZ_SEEDS=200 cargo test --release -p lexical-sync --test fuzz
 
   plugin:
-    name: lexical-plugin (WIT components, wasmtime host)
+    name: lexical-plugin (WIT components; runtime-neutral host + wasmtime backend)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-wasip2
+          targets: wasm32-wasip2,wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             .
             plugins/markdown-shortcuts
             plugins/command-fixture
-      - run: cargo test -p lexical-plugin-host --test wasm
+      # The host crate has no runtime dependency: it runs plugins in-process, and it must
+      # keep building for a bare wasm32 target so it can live inside Deno or a worker.
+      - run: cargo test -p lexical-plugin-host
+      - run: cargo check -p lexical-core -p lexical-plugin -p lexical-plugin-host --target wasm32-unknown-unknown
+      - run: cargo test -p lexical-plugin-wasmtime --test wasm
 
   lexical-js:
     name: Lexical for JavaScript as a plugin (JS-in-Wasm shim)
@@ -66,7 +70,7 @@ jobs:
           cache: npm
           cache-dependency-path: plugins/lexical-js-shim/package-lock.json
       # Release mode: compiling the ~20 MB JavaScript runtime component is slow in debug.
-      - run: cargo test --release -p lexical-plugin-host --test lexical_js
+      - run: cargo test --release -p lexical-plugin-wasmtime --test lexical_js
 
   gtk:
     name: lexical-adw (GTK4 / libadwaita, headless)

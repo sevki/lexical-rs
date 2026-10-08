@@ -1,6 +1,6 @@
 [package]
 name = "lexical-plugin-host"
-description = "Run Lexical editor plugins (WebAssembly components, see lexical-plugin) inside lexical-core"
+description = "Run Lexical editor plugins (components of the lexical:editor WIT package) inside lexical-core, on any WebAssembly runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,9 +8,4 @@ repository.workspace = true
 
 [dependencies]
 lexical-core = { path = "../lexical-core" }
-wasmtime = { version = "49", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
-wasmtime-wasi = "49"
-
-[dev-dependencies]
-# random commands and a seedable generator for the trace test
-lexical-sync = { path = "../lexical-sync" }
+lexical-plugin = { path = "../lexical-plugin" }

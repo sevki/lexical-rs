@@ -19,7 +19,8 @@
 //! ```
 //!
 //! Build with `cargo build --release --target wasm32-wasip2` and load the `.wasm` with
-//! `lexical-plugin-host`.
+//! a backend such as `lexical-plugin-wasmtime` (the runtime-neutral logic is in
+//! `lexical-plugin-host`).
 
 pub mod bindings {
     wit_bindgen::generate!({
@@ -41,3 +42,30 @@ macro_rules! export_plugin {
 
 pub use bindings::exports::lexical::editor::plugin::Guest as Plugin;
 pub use bindings::lexical::editor::types::*;
+
+/// The coarser `document-plugin` interface: the plugin receives the whole document (Lexical
+/// JSON) and returns the whole document. See `wit/lexical.wit`.
+pub mod document {
+    pub mod bindings {
+        wit_bindgen::generate!({
+            path: "wit",
+            world: "lexical-document-plugin",
+            pub_export_macro: true,
+            export_macro_name: "export_document_impl",
+            default_bindings_module: "lexical_plugin::document::bindings",
+        });
+    }
+
+    pub use bindings::exports::lexical::editor::document_plugin::{
+        DocumentOutcome, DocumentSelection, Guest as DocumentPlugin, Position,
+    };
+}
+
+/// Export a type implementing [`document::DocumentPlugin`] as the component's
+/// `lexical:editor/document-plugin`.
+#[macro_export]
+macro_rules! export_document_plugin {
+    ($plugin:ident) => {
+        $crate::document::bindings::export_document_impl!($plugin with_types_in $crate::document::bindings);
+    };
+}

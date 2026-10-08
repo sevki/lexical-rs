@@ -1,6 +1,6 @@
 //! Translation between the WIT vocabulary and `lexical-core` types.
 
-use crate::bindings::lexical::editor::types as w;
+use lexical_plugin as w;
 use lexical_core::{BlockType, Command, EditorState, HeadingTag, ListType, NodeData, NodeKey, TextFormat};
 
 pub fn heading_to_wit(t: HeadingTag) -> w::HeadingTag {

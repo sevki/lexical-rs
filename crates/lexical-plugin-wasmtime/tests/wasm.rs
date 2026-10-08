@@ -4,7 +4,7 @@
 //! need that target: `rustup target add wasm32-wasip2`.
 
 use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType};
-use lexical_plugin_host::{Budget, PluginError, WasmPlugin};
+use lexical_plugin_wasmtime::{load, load_with, Budget, ComponentPlugin, PluginError, WasmtimePlugin};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 use std::sync::OnceLock;
@@ -23,12 +23,12 @@ fn guest() -> &'static Path {
     })
 }
 
-fn plugin() -> WasmPlugin {
-    WasmPlugin::load(&std::fs::read(guest()).unwrap()).unwrap()
+fn plugin() -> ComponentPlugin<WasmtimePlugin> {
+    load(&std::fs::read(guest()).unwrap()).unwrap()
 }
 
 /// The test plugin that handles custom commands (see `plugins/command-fixture`).
-fn fixture() -> WasmPlugin {
+fn fixture() -> ComponentPlugin<WasmtimePlugin> {
     static WASM: OnceLock<PathBuf> = OnceLock::new();
     let path = WASM.get_or_init(|| {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/command-fixture");
@@ -40,7 +40,7 @@ fn fixture() -> WasmPlugin {
         assert!(status.success(), "building the fixture plugin failed");
         dir.join("target/wasm32-wasip2/release/command_fixture.wasm")
     });
-    WasmPlugin::load(&std::fs::read(path).unwrap()).unwrap()
+    load(&std::fs::read(path).unwrap()).unwrap()
 }
 
 fn styles(e: &Editor) -> Vec<BlockStyle> {
@@ -137,10 +137,10 @@ fn a_healthy_plugin_records_no_errors() {
 
 #[test]
 fn bytes_that_are_not_a_plugin_are_rejected() {
-    assert!(matches!(WasmPlugin::load(b"not wasm"), Err(PluginError::Load(_))));
+    assert!(matches!(load(b"not wasm"), Err(PluginError::Load(_))));
     // a valid component of the wrong shape
     let empty = wat_component_without_exports();
-    assert!(matches!(WasmPlugin::load(&empty), Err(PluginError::Load(_))));
+    assert!(matches!(load(&empty), Err(PluginError::Load(_))));
 }
 
 fn wat_component_without_exports() -> Vec<u8> {
@@ -151,7 +151,7 @@ fn wat_component_without_exports() -> Vec<u8> {
 #[test]
 fn a_plugin_that_runs_out_of_fuel_fails_the_call_and_not_the_editor() {
     let bytes = std::fs::read(guest()).unwrap();
-    let p = WasmPlugin::load_with(&bytes, Budget { fuel: 100, ..Budget::default() }).unwrap();
+    let p = load_with(&bytes, Budget { fuel: 100, ..Budget::default() }).unwrap();
     let errors = p.errors();
     let mut e = Editor::new();
     e.add_plugin(Box::new(p));
@@ -165,7 +165,7 @@ fn a_plugin_that_runs_out_of_fuel_fails_the_call_and_not_the_editor() {
 #[test]
 fn a_tiny_memory_cap_is_refused_at_load() {
     let bytes = std::fs::read(guest()).unwrap();
-    let r = WasmPlugin::load_with(&bytes, Budget { memory_bytes: 1024, ..Budget::default() });
+    let r = load_with(&bytes, Budget { memory_bytes: 1024, ..Budget::default() });
     match r {
         Err(PluginError::Load(m)) => assert!(m.contains("limit") || m.contains("memory"), "{m}"),
         _ => panic!("a 1 KiB memory cap should refuse the plugin"),

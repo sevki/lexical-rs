@@ -1,8 +1,7 @@
 //! The wasmtime sandbox shared by every kind of plugin: engine, store, limits and the
 //! deliberately empty WASI context.
 
-use crate::error::{PluginError, Result};
-use std::cell::RefCell;
+use lexical_plugin_host::{PluginError, Result};
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
@@ -24,18 +23,6 @@ impl Default for Budget {
 
 /// Fuel for instantiating a plugin and asking it for its `info`.
 pub(crate) const LOAD_FUEL: u64 = 500_000_000;
-
-/// Most failures kept per plugin; older ones are dropped so a plugin that fails on every
-/// command cannot make the host's memory grow without limit.
-const MAX_ERRORS: usize = 64;
-
-pub(crate) fn record(errors: &RefCell<Vec<PluginError>>, error: PluginError) {
-    let mut errors = errors.borrow_mut();
-    if errors.len() >= MAX_ERRORS {
-        errors.remove(0);
-    }
-    errors.push(error);
-}
 
 pub(crate) struct HostState {
     wasi: WasiCtx,

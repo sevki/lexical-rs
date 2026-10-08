@@ -4,7 +4,7 @@
 //! directory), so these tests need node and network access to the npm registry.
 
 use lexical_core::{BlockStyle, Command, Editor, HeadingTag, Layout, ListType, TextFormat};
-use lexical_plugin_host::{Budget, PluginError, WasmDocumentPlugin};
+use lexical_plugin_wasmtime::{load_document, load_document_with, Budget, ComponentDocumentPlugin, PluginError, WasmtimeDocument};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 use std::sync::OnceLock;
@@ -26,8 +26,8 @@ fn component() -> &'static Path {
     })
 }
 
-fn plugin() -> WasmDocumentPlugin {
-    WasmDocumentPlugin::load(&std::fs::read(component()).unwrap()).unwrap()
+fn plugin() -> ComponentDocumentPlugin<WasmtimeDocument> {
+    load_document(&std::fs::read(component()).unwrap()).unwrap()
 }
 
 fn type_str(e: &mut Editor, s: &str) {
@@ -103,7 +103,7 @@ fn formatting_goes_through_lexical_js_and_undo_stays_native() {
 #[test]
 fn a_starved_budget_fails_the_call_and_leaves_the_editor_alone() {
     let bytes = std::fs::read(component()).unwrap();
-    let p = WasmDocumentPlugin::load_with(&bytes, Budget { fuel: 1_000, memory_bytes: 256 << 20 }, 0).unwrap();
+    let p = load_document_with(&bytes, Budget { fuel: 1_000, memory_bytes: 256 << 20 }, 0).unwrap();
     let errors = p.errors();
     let mut e = Editor::new();
     e.add_plugin(Box::new(p));

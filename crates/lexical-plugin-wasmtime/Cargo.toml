@@ -1,0 +1,18 @@
+[package]
+name = "lexical-plugin-wasmtime"
+description = "wasmtime backend for lexical-plugin-host: loads Lexical plugin components under a fuel budget and memory cap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lexical-plugin-host = { path = "../lexical-plugin-host" }
+lexical-plugin = { path = "../lexical-plugin" }
+wasmtime = { version = "49", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
+wasmtime-wasi = "49"
+
+[dev-dependencies]
+lexical-core = { path = "../lexical-core" }
+# random commands and a seedable generator for the trace test
+lexical-sync = { path = "../lexical-sync" }
