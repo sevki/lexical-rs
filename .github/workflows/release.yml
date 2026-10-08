@@ -18,10 +18,16 @@ permissions:
 
 jobs:
   flatpak:
-    name: Flatpak bundle
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write # create the release and upload the bundle
+    name: Flatpak bundle (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          # phones and other ARM devices, postmarketOS among them
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - name: Install flatpak-builder
@@ -33,17 +39,29 @@ jobs:
         run: |
           flatpak-builder --user --force-clean --install-deps-from=flathub \
             --repo=repo build packaging/flatpak/io.github.sevki.LexicalDemo.yml
-          flatpak build-bundle repo lexical-demo.flatpak io.github.sevki.LexicalDemo
+          flatpak build-bundle repo lexical-demo-${{ matrix.arch }}.flatpak io.github.sevki.LexicalDemo
       - uses: actions/upload-artifact@v4
         with:
-          name: lexical-demo.flatpak
-          path: lexical-demo.flatpak
-      - name: Attach to the release
-        if: startsWith(github.ref, 'refs/tags/') || inputs.version != ''
+          name: lexical-demo-${{ matrix.arch }}.flatpak
+          path: lexical-demo-${{ matrix.arch }}.flatpak
+
+  release:
+    name: Publish release
+    needs: flatpak
+    if: startsWith(github.ref, 'refs/tags/') || inputs.version != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the release and upload the bundles
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lexical-demo-*.flatpak
+          merge-multiple: true
+      - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.version || github.ref_name }}
         run: |
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes \
-            --title "$TAG" lexical-demo.flatpak \
-            || gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber lexical-demo.flatpak
+            --title "$TAG" lexical-demo-*.flatpak \
+            || gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber lexical-demo-*.flatpak
