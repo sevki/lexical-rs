@@ -4,6 +4,7 @@
 //! `cargo run -p lexical-adw --example collab`
 
 use adw::gtk::{self, prelude::*};
+use adw::prelude::AdwApplicationWindowExt;
 use lexical_adw::LexicalView;
 use lexical_core::{Command, Editor};
 use lexical_sync::Collab;
@@ -45,6 +46,16 @@ fn push(from: &Peer, to: &Peer) {
     }
 }
 
+/// The formatting toolbar is wider than a phone screen, so let it scroll sideways.
+fn scrolled_toolbar(view: &LexicalView) -> gtk::ScrolledWindow {
+    gtk::ScrolledWindow::builder()
+        .child(view.toolbar())
+        .hscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .build()
+}
+
 fn pane(peer: &Rc<Peer>, other: &Rc<Peer>) -> gtk::Box {
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     header.set_margin_start(12);
@@ -79,7 +90,7 @@ fn pane(peer: &Rc<Peer>, other: &Rc<Peer>) -> gtk::Box {
     let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
     column.set_hexpand(true);
     column.append(&header);
-    column.append(peer.view.toolbar());
+    column.append(&scrolled_toolbar(&peer.view));
     column.append(peer.view.widget());
     column
 }
@@ -102,7 +113,8 @@ fn build_ui(app: &adw::Application) {
 
     let panes = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     panes.append(&pane(&alice, &bob));
-    panes.append(&gtk::Separator::new(gtk::Orientation::Vertical));
+    let separator = gtk::Separator::new(gtk::Orientation::Vertical);
+    panes.append(&separator);
     panes.append(&pane(&bob, &alice));
 
     let toolbar_view = adw::ToolbarView::new();
@@ -115,6 +127,12 @@ fn build_ui(app: &adw::Application) {
         .default_height(640)
         .content(&toolbar_view)
         .build();
+    // On a narrow screen (a phone) stack the two editors instead of putting them side by side.
+    let narrow = adw::Breakpoint::new(adw::BreakpointCondition::parse("max-width: 700sp").unwrap());
+    narrow.add_setter(&panes, "orientation", Some(&gtk::Orientation::Vertical.to_value()));
+    narrow.add_setter(&separator, "orientation", Some(&gtk::Orientation::Horizontal.to_value()));
+    window.add_breakpoint(narrow);
+    window.set_width_request(320);
     window.present();
     alice.view.text_view().grab_focus();
 }
