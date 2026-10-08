@@ -1,0 +1,24 @@
+{
+  "name": "lexical-js-shim",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Run Lexical for JavaScript plugins as a lexical-rs document plugin component",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs && jco componentize dist/entry.mjs --wit ../../crates/lexical-plugin/wit --world-name lexical-document-plugin --disable http fetch-event --out dist/lexical-js-shim.wasm"
+  },
+  "dependencies": {
+    "@lexical/code": "0.52.0",
+    "@lexical/headless": "0.52.0",
+    "@lexical/link": "0.52.0",
+    "@lexical/list": "0.52.0",
+    "@lexical/markdown": "0.52.0",
+    "@lexical/rich-text": "0.52.0",
+    "lexical": "0.52.0"
+  },
+  "devDependencies": {
+    "@bytecodealliance/componentize-js": "0.23.0",
+    "@bytecodealliance/jco": "1.37.0",
+    "esbuild": "0.28.2"
+  }
+}

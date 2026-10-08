@@ -4,17 +4,42 @@
 use adw::prelude::*;
 use adw::gtk::{self, gio};
 use lexical_adw::LexicalView;
-use lexical_core::{Command, Editor, MarkdownShortcutsPlugin};
+use lexical_core::{Command, Editor};
 
 const APP_ID: &str = "io.github.sevki.LexicalDemo";
 
+/// Plugin components named in `LEXICAL_PLUGINS` (paths separated like `PATH`). To try the
+/// markdown shortcuts, build `plugins/markdown-shortcuts` with
+/// `cargo build --release --target wasm32-wasip2`, then
+/// `LEXICAL_PLUGINS=plugins/markdown-shortcuts/target/wasm32-wasip2/release/markdown_shortcuts.wasm
+///  cargo run -p lexical-adw --features plugins --example demo`.
+#[cfg(feature = "plugins")]
+fn load_plugins(editor: &mut Editor) {
+    let Some(paths) = std::env::var_os("LEXICAL_PLUGINS") else { return };
+    for path in std::env::split_paths(&paths) {
+        match std::fs::read(&path)
+            .map_err(|e| e.to_string())
+            .and_then(|b| lexical_wasmtime::load(&b).map_err(|e| e.to_string()))
+        {
+            Ok(plugin) => editor.add_plugin(Box::new(plugin)),
+            Err(e) => eprintln!("plugin {}: {e}", path.display()),
+        }
+    }
+}
+
+#[cfg(not(feature = "plugins"))]
+fn load_plugins(_editor: &mut Editor) {}
+
 fn build_ui(app: &adw::Application) {
     let mut editor = Editor::new();
-    editor.add_plugin(Box::new(MarkdownShortcutsPlugin::default()));
+    load_plugins(&mut editor);
     let view = LexicalView::with_editor(editor);
-    view.dispatch(Command::Paste(
-        "Welcome to Lexical on libadwaita\nTry the toolbar, or type “# ”, “- ” or “1. ” at the start of a line.".into(),
-    ));
+    let hint = if cfg!(feature = "plugins") {
+        "Try the toolbar, or (with the markdown plugin loaded) type “# ”, “- ” or “1. ” at the start of a line."
+    } else {
+        "Try the toolbar."
+    };
+    view.dispatch(Command::Paste(format!("Welcome to Lexical on libadwaita\n{hint}")));
 
     // JSON inspector sidebar
     let json_view = gtk::TextView::builder()

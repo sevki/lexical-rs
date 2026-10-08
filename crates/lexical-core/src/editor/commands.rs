@@ -36,17 +36,18 @@ impl Editor {
     /// Dispatch a command: registered handlers first, then the built-in behaviour.
     /// Returns whether anything handled it.
     pub fn dispatch(&mut self, cmd: Command) -> bool {
-        let mut handlers = std::mem::take(&mut self.command_handlers);
+        // Handlers stay registered while they run, so a command dispatched from inside one
+        // reaches the others. A handler that is already running is skipped for the nested
+        // command, which also rules out a handler recursing into itself.
+        let handlers: Vec<_> = self.command_handlers.iter().map(|(_, _, h)| h.clone()).collect();
         let mut handled = false;
-        for (_, _, h) in handlers.iter_mut() {
-            if h(self, &cmd) {
+        for h in handlers {
+            let Ok(mut f) = h.try_borrow_mut() else { continue };
+            if f(self, &cmd) {
                 handled = true;
                 break;
             }
         }
-        handlers.append(&mut self.command_handlers);
-        handlers.sort_by_key(|(p, _, _)| -*p);
-        self.command_handlers = handlers;
         handled || self.handle_default(&cmd)
     }
 

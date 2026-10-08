@@ -53,12 +53,9 @@ fn random_selection(e: &mut Editor, r: &mut Rng) {
     e.set_selection(pa, pf);
 }
 
-fn run_trace(seed: u64, steps: usize, markdown: bool) {
+fn run_trace(seed: u64, steps: usize) {
     let mut r = Rng(seed | 1);
     let mut e = Editor::new();
-    if markdown {
-        e.add_plugin(Box::new(MarkdownShortcutsPlugin::default()));
-    }
     let mut log: Vec<String> = vec![];
     for step in 0..steps {
         let before = format!("{:?}\n{}", e.state().selection, e.state().to_json_string());
@@ -95,14 +92,7 @@ fn seeds(default: u64) -> u64 {
 #[test]
 fn random_traces_preserve_invariants() {
     for seed in 1..=seeds(300) {
-        run_trace(seed.wrapping_mul(0x9E3779B97F4A7C15), 120, false);
-    }
-}
-
-#[test]
-fn random_traces_with_markdown_plugin() {
-    for seed in 1..=seeds(100) {
-        run_trace(seed.wrapping_mul(0xD1B54A32D192ED03), 120, true);
+        run_trace(seed.wrapping_mul(0x9E3779B97F4A7C15), 120);
     }
 }
 

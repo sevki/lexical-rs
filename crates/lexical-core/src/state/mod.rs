@@ -168,6 +168,18 @@ impl EditorState {
         self.dirty.clear();
     }
 
+    /// Replace the whole document with `other` (for example one an external tool produced),
+    /// keeping this state's limits. Every old and new node counts as changed, so listeners,
+    /// history and collaboration see it as an ordinary local edit.
+    pub fn replace_document(&mut self, mut other: EditorState) {
+        let mut dirty: BTreeSet<NodeKey> = self.nodes.keys().copied().collect();
+        dirty.extend(other.nodes.keys().copied());
+        other.limits = self.limits;
+        other.dirty = dirty;
+        other.validate_selection();
+        *self = other;
+    }
+
     /// Set the alignment and indent level of an element node.
     pub fn set_element_attrs(&mut self, key: NodeKey, align: Align, indent: u32) {
         let node = self.node_mut(key);

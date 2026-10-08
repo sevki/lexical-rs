@@ -1,0 +1,11 @@
+[package]
+name = "lexical-plugin-host"
+description = "Run Lexical editor plugins (components of the lexical:editor WIT package) inside lexical-core, on any WebAssembly runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lexical-core = { path = "../lexical-core" }
+lexical-plugin = { path = "../lexical-plugin" }

@@ -1,2 +1,5 @@
 /target
+/plugins/*/target
+/plugins/*/node_modules
+/plugins/*/dist
 Cargo.lock.bak

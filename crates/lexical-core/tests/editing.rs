@@ -364,22 +364,6 @@ fn runaway_transform_errors() {
 }
 
 #[test]
-fn markdown_shortcuts() {
-    let mut e = Editor::new();
-    e.add_plugin(Box::new(MarkdownShortcutsPlugin::default()));
-    e.dispatch(Command::InsertText("#".into()));
-    e.dispatch(Command::InsertText(" ".into()));
-    assert!(matches!(Layout::build(e.state()).lines[0].style, BlockStyle::Heading(HeadingTag::H1)));
-    e.dispatch(Command::InsertText("Hi".into()));
-    assert_eq!(lines(&e), ["Hi"]);
-
-    e.dispatch(Command::InsertParagraph); // new paragraph (end of heading)
-    e.dispatch(Command::InsertText("- ".into()));
-    let l = Layout::build(e.state());
-    assert!(matches!(l.lines[1].style, BlockStyle::ListItem { list_type: ListType::Bullet, .. }));
-}
-
-#[test]
 fn json_round_trip_and_lexical_shape() {
     let mut e = editor_with("hello");
     select(&mut e, 0, 5);

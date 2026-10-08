@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/lexical-core", "crates/lexical-adw", "crates/lexical-sync"]
+members = ["crates/lexical-core", "crates/lexical-adw", "crates/lexical-sync", "crates/lexical-plugin", "crates/lexical-plugin-host", "crates/lexical-wasmtime"]
+# Guest plugins are built for wasm32-wasip2 on their own.
+exclude = ["plugins"]
 
 [workspace.package]
 version = "0.1.0"
