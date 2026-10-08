@@ -1,0 +1,13 @@
+[package]
+name = "lexical-yjs"
+description = "Yjs interop for lexical-core: read and write the document layout used by Lexical for JavaScript's @lexical/yjs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lexical-core = { path = "../lexical-core" }
+yrs = "0.28"
+thiserror = "2"
+serde_json.workspace = true

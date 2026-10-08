@@ -19,6 +19,8 @@
   "devDependencies": {
     "@bytecodealliance/componentize-js": "0.23.0",
     "@bytecodealliance/jco": "1.37.0",
-    "esbuild": "0.28.2"
+    "@lexical/yjs": "^0.52.0",
+    "esbuild": "0.28.2",
+    "yjs": "^13.6.33"
   }
 }
