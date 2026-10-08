@@ -7,33 +7,26 @@ use lexical_plugin::{
 
 struct MarkdownShortcuts;
 
-const HEADINGS: [HeadingTag; 6] =
-    [HeadingTag::H1, HeadingTag::H2, HeadingTag::H3, HeadingTag::H4, HeadingTag::H5, HeadingTag::H6];
-
-/// The characters a shortcut consumes and the op that applies it.
+/// The characters a shortcut consumes (its marker and the space after it) and the op that
+/// applies it.
 fn shortcut(text: &str) -> Option<(u32, Op)> {
-    for (i, tag) in HEADINGS.iter().enumerate() {
-        let n = i + 1;
-        if text.starts_with(&format!("{} ", "#".repeat(n))) {
-            return Some((n as u32 + 1, Op::SetBlock(BlockKind::Heading(*tag))));
-        }
-    }
-    if text.starts_with("> ") {
-        return Some((2, Op::SetBlock(BlockKind::Quote)));
-    }
-    if text.starts_with("``` ") {
-        return Some((4, Op::SetBlock(BlockKind::Code)));
-    }
-    if text.starts_with("- ") || text.starts_with("* ") {
-        return Some((2, Op::ToggleList(ListType::Bullet)));
-    }
-    if text.starts_with("[ ] ") {
-        return Some((4, Op::ToggleList(ListType::Check)));
-    }
-    if text.starts_with("1. ") {
-        return Some((3, Op::ToggleList(ListType::Number)));
-    }
-    None
+    // The marker is everything before the first space, except `[ ]`, which has one inside.
+    let marker = if text.starts_with("[ ] ") { "[ ]" } else { text.split_once(' ')?.0 };
+    let op = match marker {
+        "#" => Op::SetBlock(BlockKind::Heading(HeadingTag::H1)),
+        "##" => Op::SetBlock(BlockKind::Heading(HeadingTag::H2)),
+        "###" => Op::SetBlock(BlockKind::Heading(HeadingTag::H3)),
+        "####" => Op::SetBlock(BlockKind::Heading(HeadingTag::H4)),
+        "#####" => Op::SetBlock(BlockKind::Heading(HeadingTag::H5)),
+        "######" => Op::SetBlock(BlockKind::Heading(HeadingTag::H6)),
+        ">" => Op::SetBlock(BlockKind::Quote),
+        "```" => Op::SetBlock(BlockKind::Code),
+        "-" | "*" => Op::ToggleList(ListType::Bullet),
+        "[ ]" => Op::ToggleList(ListType::Check),
+        "1." => Op::ToggleList(ListType::Number),
+        _ => return None,
+    };
+    Some((marker.chars().count() as u32 + 1, op))
 }
 
 impl Plugin for MarkdownShortcuts {
