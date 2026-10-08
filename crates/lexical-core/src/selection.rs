@@ -2,6 +2,7 @@ use crate::format::TextFormat;
 use crate::node::NodeKey;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
 pub enum PointKind {
     /// `offset` counts chars inside a text node.
     Text,
@@ -10,6 +11,7 @@ pub enum PointKind {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
 pub struct Point {
     pub key: NodeKey,
     pub offset: usize,
@@ -28,6 +30,7 @@ impl Point {
 /// A range selection. `format`/`style` are the pending formatting applied to the
 /// next typed text (mirrors Lexical's `RangeSelection.format`).
 #[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
 pub struct Selection {
     pub anchor: Point,
     pub focus: Point,

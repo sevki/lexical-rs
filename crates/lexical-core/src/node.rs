@@ -2,9 +2,12 @@
 //! addressed by a [`NodeKey`]; parent/child links are keys, never references.
 
 use crate::format::{Align, TextFormat};
+#[cfg(feature = "jetstream")]
+use jetstream_wireformat::JetStreamWireFormat;
 use std::fmt;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub struct NodeKey(pub u64);
 
 pub const ROOT_KEY: NodeKey = NodeKey(0);
@@ -21,6 +24,7 @@ impl fmt::Display for NodeKey {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub enum HeadingTag {
     H1,
     H2,
@@ -51,6 +55,7 @@ impl HeadingTag {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub enum ListType {
     Bullet,
     Number,
@@ -76,6 +81,7 @@ impl ListType {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub enum TextMode {
     #[default]
     Normal,
@@ -133,6 +139,7 @@ impl NodeType {
 }
 
 #[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub enum NodeData {
     Root,
     Paragraph,
@@ -142,7 +149,15 @@ pub enum NodeData {
     List { list_type: ListType, start: u32 },
     ListItem { checked: Option<bool> },
     Link { url: String, target: Option<String>, rel: Option<String>, title: Option<String> },
-    Text { text: String, format: TextFormat, style: String, mode: TextMode, detail: u8 },
+    Text {
+        // JetStream strings carry a `u16` length; a text node may be longer.
+        #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Text)))]
+        text: String,
+        format: TextFormat,
+        style: String,
+        mode: TextMode,
+        detail: u8,
+    },
     LineBreak,
 }
 
@@ -178,9 +193,12 @@ impl NodeData {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "jetstream", derive(JetStreamWireFormat))]
 pub struct Node {
     pub key: NodeKey,
     pub parent: Option<NodeKey>,
+    // `u16` element counts would cap a block at 65,535 children.
+    #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Seq)))]
     pub children: Vec<NodeKey>,
     pub data: NodeData,
     pub indent: u32,

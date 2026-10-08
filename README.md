@@ -37,10 +37,15 @@ verus/verify.sh                             # proofs (needs Verus)
 
 * **Lexical JSON** — `EditorState::to_json` / `from_json`, compatible with web Lexical documents
   (text format bits, `listType`, `tag`, `checked`, `indent`, alignment…).
-* **[JetStream](https://jetstream.rs) wire format** (feature `jetstream`) — `WireDocument` /
-  `WireNode` derive `JetStreamWireFormat`; `EditorState` itself implements `WireFormat`, so a
-  document can be sent as an RPC message (`to_wire_bytes` / `from_wire_bytes`). JetStream strings
-  are `u16`-length-prefixed, so text is chunked transparently (a 260 KB text node round-trips).
+* **[JetStream](https://jetstream.rs) wire format** (feature `jetstream`) — the document types
+  themselves (`EditorState`, `Node`, `NodeData`, `Selection`, …) derive `JetStreamWireFormat`
+  behind `cfg_attr`; there is no separate wire model. A document can be sent as an RPC message
+  as it is, or as bytes with `to_wire_bytes` / `from_wire_bytes`. JetStream's own strings,
+  vectors and maps count in `u16`, so three field codecs in `wire::wide` use `u32` counts for
+  text, children and the node arena (a 260 KB text node and a 70,000-block document both
+  round-trip). The arena is written in key order, so equal documents give equal bytes.
+  Decoding checks nothing about how nodes relate, so use `from_wire_bytes`, or call
+  `check_wire()` on a document received any other way, before trusting it.
 
 ## Status and known limitations
 
