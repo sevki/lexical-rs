@@ -11,7 +11,11 @@ impl EditorState {
         for b in self.selected_blocks() {
             if self.node(b).node_type() == NodeType::ListItem {
                 self.indent_item(b);
-            } else if self.limits.max_indent.is_none_or(|max| self.node(b).indent < max) {
+            } else if self
+                .limits
+                .max_indent
+                .is_none_or(|max| self.node(b).indent < max)
+            {
                 self.node_mut(b).indent += 1;
             }
         }

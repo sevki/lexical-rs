@@ -145,10 +145,22 @@ pub enum NodeData {
     Paragraph,
     Heading(HeadingTag),
     Quote,
-    Code { language: Option<String> },
-    List { list_type: ListType, start: u32 },
-    ListItem { checked: Option<bool> },
-    Link { url: String, target: Option<String>, rel: Option<String>, title: Option<String> },
+    Code {
+        language: Option<String>,
+    },
+    List {
+        list_type: ListType,
+        start: u32,
+    },
+    ListItem {
+        checked: Option<bool>,
+    },
+    Link {
+        url: String,
+        target: Option<String>,
+        rel: Option<String>,
+        title: Option<String>,
+    },
     Text {
         // JetStream strings carry a `u16` length; a text node may be longer.
         #[cfg_attr(feature = "jetstream", jetstream(with(crate::wire::wide::Text)))]

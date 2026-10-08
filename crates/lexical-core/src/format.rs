@@ -35,7 +35,10 @@ impl TextFormat {
 
 /// Horizontal alignment of an element.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-#[cfg_attr(feature = "jetstream", derive(jetstream_wireformat::JetStreamWireFormat))]
+#[cfg_attr(
+    feature = "jetstream",
+    derive(jetstream_wireformat::JetStreamWireFormat)
+)]
 pub enum Align {
     #[default]
     Start,

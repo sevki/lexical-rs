@@ -5,7 +5,9 @@ use lexical_core::*;
 
 fn rich_doc() -> Editor {
     let mut e = Editor::new();
-    e.dispatch(Command::Paste("title\nsome bold text\nitem one\nitem two".into()));
+    e.dispatch(Command::Paste(
+        "title\nsome bold text\nitem one\nitem two".into(),
+    ));
     let sel = |e: &mut Editor, a: usize, b: usize| {
         let s = e.state();
         let l = Layout::build(s);
@@ -33,7 +35,11 @@ fn the_document_types_are_the_wire_types() {
     let mut back = <EditorState as WireFormat>::decode(&mut buf.as_slice()).unwrap();
     back.check_wire().unwrap();
     assert_eq!(back.to_json(), e.state().to_json());
-    assert_eq!(back.selection, e.state().selection, "the selection travels with the document");
+    assert_eq!(
+        back.selection,
+        e.state().selection,
+        "the selection travels with the document"
+    );
 }
 
 #[test]
@@ -92,7 +98,10 @@ fn rejects_malformed_input() {
 
     // every truncation fails cleanly
     for n in 0..good.len() {
-        assert!(EditorState::from_wire_bytes(&good[..n]).is_err(), "prefix of {n} bytes");
+        assert!(
+            EditorState::from_wire_bytes(&good[..n]).is_err(),
+            "prefix of {n} bytes"
+        );
     }
 }
 

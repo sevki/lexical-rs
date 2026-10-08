@@ -52,9 +52,17 @@ impl History {
     }
 
     /// Record that `prev` was replaced by a content change.
-    pub(crate) fn record(&mut self, prev: EditorState, kind: ChangeKind, force_merge: bool, force_push: bool) {
+    pub(crate) fn record(
+        &mut self,
+        prev: EditorState,
+        kind: ChangeKind,
+        force_merge: bool,
+        force_push: bool,
+    ) {
         let now = Instant::now();
-        let within = self.last_time.is_some_and(|t| now.duration_since(t) < self.merge_window);
+        let within = self
+            .last_time
+            .is_some_and(|t| now.duration_since(t) < self.merge_window);
         let merge = !force_push
             && !self.undo.is_empty()
             && (force_merge || (kind != ChangeKind::Other && kind == self.last_kind && within));

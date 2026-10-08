@@ -13,7 +13,12 @@ pub enum BlockStyle {
     Heading(HeadingTag),
     Quote,
     Code,
-    ListItem { list_type: ListType, ordinal: u32, checked: Option<bool>, depth: u32 },
+    ListItem {
+        list_type: ListType,
+        ordinal: u32,
+        checked: Option<bool>,
+        depth: u32,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -57,12 +62,20 @@ impl Layout {
             let node = state.node(b);
             let style = block_style(state, b);
             let marker = match &style {
-                BlockStyle::ListItem { list_type, ordinal, checked, .. } => match list_type {
+                BlockStyle::ListItem {
+                    list_type,
+                    ordinal,
+                    checked,
+                    ..
+                } => match list_type {
                     ListType::Bullet => "• ".to_string(),
                     ListType::Number => format!("{ordinal}. "),
-                    ListType::Check => {
-                        if checked == &Some(true) { "☑ " } else { "☐ " }.to_string()
+                    ListType::Check => if checked == &Some(true) {
+                        "☑ "
+                    } else {
+                        "☐ "
                     }
+                    .to_string(),
                 },
                 _ => String::new(),
             };
@@ -73,9 +86,11 @@ impl Layout {
             out.text.push_str(&content.text);
             for piece in content.pieces.iter().filter(|p| p.is_text) {
                 let n = state.node(piece.key);
-                let link = state.ancestors(piece.key).into_iter().find_map(|a| match &state.node(a).data {
-                    NodeData::Link { url, .. } => Some(url.clone()),
-                    _ => None,
+                let link = state.ancestors(piece.key).into_iter().find_map(|a| {
+                    match &state.node(a).data {
+                        NodeData::Link { url, .. } => Some(url.clone()),
+                        _ => None,
+                    }
                 });
                 out.runs.push(Run {
                     key: piece.key,
@@ -106,15 +121,22 @@ impl Layout {
     /// Buffer offset for a selection point.
     pub fn offset_of(&self, state: &EditorState, p: &Point) -> usize {
         let p = state.inline_point(p);
-        let Some(block) = state.line_block_of(p.key) else { return self.char_len() };
-        let Some(line) = self.lines.iter().find(|l| l.key == block) else { return self.char_len() };
+        let Some(block) = state.line_block_of(p.key) else {
+            return self.char_len();
+        };
+        let Some(line) = self.lines.iter().find(|l| l.key == block) else {
+            return self.char_len();
+        };
         let content = state.block_content(block);
         line.content_start + state.block_offset(&content, &p)
     }
 
     /// Selection point for a buffer offset (clamped out of list markers).
     pub fn point_at(&self, state: &EditorState, offset: usize) -> Point {
-        let idx = self.lines.partition_point(|l| l.start <= offset).saturating_sub(1);
+        let idx = self
+            .lines
+            .partition_point(|l| l.start <= offset)
+            .saturating_sub(1);
         let Some(line) = self.lines.get(idx) else {
             return Point::element(ROOT_KEY, 0);
         };
@@ -124,7 +146,10 @@ impl Layout {
     }
 
     pub fn line_at(&self, offset: usize) -> Option<&Line> {
-        let idx = self.lines.partition_point(|l| l.start <= offset).saturating_sub(1);
+        let idx = self
+            .lines
+            .partition_point(|l| l.start <= offset)
+            .saturating_sub(1);
         self.lines.get(idx)
     }
 }
@@ -156,7 +181,12 @@ fn block_style(state: &EditorState, b: NodeKey) -> BlockStyle {
                 .filter(|&&a| state.node(a).node_type() == NodeType::List)
                 .count()
                 .saturating_sub(1) as u32;
-            BlockStyle::ListItem { list_type, ordinal, checked: *checked, depth }
+            BlockStyle::ListItem {
+                list_type,
+                ordinal,
+                checked: *checked,
+                depth,
+            }
         }
         _ => BlockStyle::Paragraph,
     }

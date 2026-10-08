@@ -5,22 +5,30 @@ use crate::state::EditorState;
 
 impl Editor {
     pub fn can_undo(&self) -> bool {
-        self.history_provider.as_ref().map_or_else(|| self.history.can_undo(), |p| p().0)
+        self.history_provider
+            .as_ref()
+            .map_or_else(|| self.history.can_undo(), |p| p().0)
     }
 
     pub fn can_redo(&self) -> bool {
-        self.history_provider.as_ref().map_or_else(|| self.history.can_redo(), |p| p().1)
+        self.history_provider
+            .as_ref()
+            .map_or_else(|| self.history.can_redo(), |p| p().1)
     }
 
     pub fn undo(&mut self) -> bool {
-        let Some(snap) = self.history.undo.pop() else { return false };
+        let Some(snap) = self.history.undo.pop() else {
+            return false;
+        };
         self.history.redo.push(self.state.clone());
         self.restore(snap);
         true
     }
 
     pub fn redo(&mut self) -> bool {
-        let Some(snap) = self.history.redo.pop() else { return false };
+        let Some(snap) = self.history.redo.pop() else {
+            return false;
+        };
         self.history.undo.push(self.state.clone());
         self.restore(snap);
         true

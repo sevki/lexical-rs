@@ -41,11 +41,21 @@ impl EditorState {
             match &n.data {
                 NodeData::Text { text, .. } => {
                     c.text.push_str(text);
-                    c.pieces.push(Piece { key: k, start, len: n.text_len(), is_text: true });
+                    c.pieces.push(Piece {
+                        key: k,
+                        start,
+                        len: n.text_len(),
+                        is_text: true,
+                    });
                 }
                 NodeData::LineBreak => {
                     c.text.push('\n');
-                    c.pieces.push(Piece { key: k, start, len: 1, is_text: false });
+                    c.pieces.push(Piece {
+                        key: k,
+                        start,
+                        len: 1,
+                        is_text: false,
+                    });
                 }
                 _ if n.is_element() => {
                     self.walk_content(k, c);
@@ -83,15 +93,21 @@ impl EditorState {
         {
             return Point::text(x.key, offset - x.start);
         }
-        if let Some(x) = content.pieces.iter().find(|x| !x.is_text && x.start == offset) {
+        if let Some(x) = content
+            .pieces
+            .iter()
+            .find(|x| !x.is_text && x.start == offset)
+        {
             let par = self.parent(x.key).unwrap();
             return Point::element(par, self.index_in_parent(x.key).unwrap());
         }
         if let Some(x) = content.pieces.last()
-            && !x.is_text && x.start + x.len == offset {
-                let par = self.parent(x.key).unwrap();
-                return Point::element(par, self.index_in_parent(x.key).unwrap() + 1);
-            }
+            && !x.is_text
+            && x.start + x.len == offset
+        {
+            let par = self.parent(x.key).unwrap();
+            return Point::element(par, self.index_in_parent(x.key).unwrap() + 1);
+        }
         Point::element(block, 0)
     }
 
@@ -101,7 +117,11 @@ impl EditorState {
         let mut p = *p;
         loop {
             let Some(n) = self.get(p.key) else { return p };
-            if p.kind == PointKind::Text || !n.is_element() || n.is_inline() || self.is_line_block(p.key) {
+            if p.kind == PointKind::Text
+                || !n.is_element()
+                || n.is_inline()
+                || self.is_line_block(p.key)
+            {
                 return p;
             }
             if n.children.is_empty() {

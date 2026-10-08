@@ -29,6 +29,6 @@ pub use format::{Align, TextFormat};
 pub use layout::{BlockStyle, Layout, Line, Run};
 pub use limits::Limits;
 pub use markdown::MarkdownShortcutsPlugin;
-pub use node::{HeadingTag, ListType, Node, NodeData, NodeKey, NodeType, TextMode, ROOT_KEY};
+pub use node::{HeadingTag, ListType, Node, NodeData, NodeKey, NodeType, ROOT_KEY, TextMode};
 pub use selection::{Point, PointKind, Selection};
 pub use state::EditorState;

@@ -43,12 +43,20 @@ fn match_prefix(text: &str) -> Option<(usize, Shortcut)> {
 }
 
 fn transform(s: &mut EditorState, key: NodeKey) -> Result<()> {
-    let Some(text) = s.node(key).text().map(str::to_string) else { return Ok(()) };
-    let Some(parent) = s.parent(key) else { return Ok(()) };
-    if s.node(parent).node_type() != NodeType::Paragraph || s.node(parent).children.first() != Some(&key) {
+    let Some(text) = s.node(key).text().map(str::to_string) else {
+        return Ok(());
+    };
+    let Some(parent) = s.parent(key) else {
+        return Ok(());
+    };
+    if s.node(parent).node_type() != NodeType::Paragraph
+        || s.node(parent).children.first() != Some(&key)
+    {
         return Ok(());
     }
-    let Some((n, sc)) = match_prefix(&text) else { return Ok(()) };
+    let Some((n, sc)) = match_prefix(&text) else {
+        return Ok(());
+    };
     // Only fire while typing: the caret must sit right after the prefix.
     match &s.selection {
         Some(sel) if sel.is_collapsed() && sel.anchor == Point::text(key, n) => {}

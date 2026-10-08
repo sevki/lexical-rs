@@ -32,7 +32,9 @@ impl BlockType {
 impl EditorState {
     /// Line blocks touched by the selection, in document order.
     pub fn selected_blocks(&self) -> Vec<NodeKey> {
-        let Ok((s, e)) = self.ordered_points() else { return vec![] };
+        let Ok((s, e)) = self.ordered_points() else {
+            return vec![];
+        };
         let blocks = self.line_blocks();
         let find = |p: &Point| {
             self.line_block_of(self.inline_point(p).key)

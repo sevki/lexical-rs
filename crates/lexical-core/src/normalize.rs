@@ -49,15 +49,22 @@ impl EditorState {
     fn merge_list_structure(&mut self, el: NodeKey) -> bool {
         let is_wrapper = |s: &EditorState, k: NodeKey| {
             s.node(k).node_type() == NodeType::ListItem
-                && s.node(k).children.iter().any(|&c| s.node(c).node_type() == NodeType::List)
+                && s.node(k)
+                    .children
+                    .iter()
+                    .any(|&c| s.node(c).node_type() == NodeType::List)
         };
         let mut changed = false;
         let mut i = 0;
         while i + 1 < self.node(el).children.len() {
             let (a, b) = (self.node(el).children[i], self.node(el).children[i + 1]);
             let mergeable = match (&self.node(a).data, &self.node(b).data) {
-                (NodeData::List { list_type: x, .. }, NodeData::List { list_type: y, .. }) => x == y,
-                (NodeData::ListItem { .. }, NodeData::ListItem { .. }) => is_wrapper(self, a) && is_wrapper(self, b),
+                (NodeData::List { list_type: x, .. }, NodeData::List { list_type: y, .. }) => {
+                    x == y
+                }
+                (NodeData::ListItem { .. }, NodeData::ListItem { .. }) => {
+                    is_wrapper(self, a) && is_wrapper(self, b)
+                }
                 _ => false,
             };
             if mergeable {
@@ -87,10 +94,11 @@ impl EditorState {
                 continue;
             }
             if let Some(&nx) = self.node(el).children.get(i + 1)
-                && self.mergeable(k, nx) {
-                    self.merge_text(k, nx);
-                    continue;
-                }
+                && self.mergeable(k, nx)
+            {
+                self.merge_text(k, nx);
+                continue;
+            }
             i += 1;
         }
     }
@@ -98,10 +106,18 @@ impl EditorState {
     /// A list item has a checked state exactly when it is a real item of a check list
     /// (never a nesting wrapper). Whatever path moved or retyped items, this settles it.
     fn normalize_checked(&mut self, el: NodeKey) {
-        let NodeData::List { list_type, .. } = self.node(el).data else { return };
+        let NodeData::List { list_type, .. } = self.node(el).data else {
+            return;
+        };
         for item in self.node(el).children.clone() {
-            let wrapper = self.node(item).children.iter().any(|&c| self.node(c).node_type() == NodeType::List);
-            let want = |cur: Option<bool>| (list_type == ListType::Check && !wrapper).then(|| cur.unwrap_or(false));
+            let wrapper = self
+                .node(item)
+                .children
+                .iter()
+                .any(|&c| self.node(c).node_type() == NodeType::List);
+            let want = |cur: Option<bool>| {
+                (list_type == ListType::Check && !wrapper).then(|| cur.unwrap_or(false))
+            };
             if let NodeData::ListItem { checked } = self.node(item).data
                 && checked != want(checked)
                 && let NodeData::ListItem { checked } = &mut self.node_mut(item).data
@@ -120,9 +136,25 @@ impl EditorState {
         let (na, nb) = (self.node(a), self.node(b));
         match (&na.data, &nb.data) {
             (
-                NodeData::Text { format: fa, style: sa, mode: ma, .. },
-                NodeData::Text { format: fb, style: sb, mode: mb, .. },
-            ) => fa == fb && sa == sb && ma == mb && *ma == TextMode::Normal && *mb == TextMode::Normal,
+                NodeData::Text {
+                    format: fa,
+                    style: sa,
+                    mode: ma,
+                    ..
+                },
+                NodeData::Text {
+                    format: fb,
+                    style: sb,
+                    mode: mb,
+                    ..
+                },
+            ) => {
+                fa == fb
+                    && sa == sb
+                    && ma == mb
+                    && *ma == TextMode::Normal
+                    && *mb == TextMode::Normal
+            }
             _ => false,
         }
     }
@@ -130,7 +162,11 @@ impl EditorState {
     /// Append `b` onto `a` and delete `b`, keeping selection points on the same chars.
     fn merge_text(&mut self, a: NodeKey, b: NodeKey) {
         let la = self.node(a).text_len();
-        let joined = format!("{}{}", self.node(a).text().unwrap(), self.node(b).text().unwrap());
+        let joined = format!(
+            "{}{}",
+            self.node(a).text().unwrap(),
+            self.node(b).text().unwrap()
+        );
         self.set_text(a, &joined);
         if let Some(sel) = self.selection.as_mut() {
             for p in [&mut sel.anchor, &mut sel.focus] {

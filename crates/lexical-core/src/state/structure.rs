@@ -8,8 +8,14 @@ impl EditorState {
     pub fn is_line_block(&self, key: NodeKey) -> bool {
         let n = self.node(key);
         match n.data {
-            NodeData::Paragraph | NodeData::Heading(_) | NodeData::Quote | NodeData::Code { .. } => true,
-            NodeData::ListItem { .. } => !n.children.iter().any(|&c| self.node(c).node_type() == NodeType::List),
+            NodeData::Paragraph
+            | NodeData::Heading(_)
+            | NodeData::Quote
+            | NodeData::Code { .. } => true,
+            NodeData::ListItem { .. } => !n
+                .children
+                .iter()
+                .any(|&c| self.node(c).node_type() == NodeType::List),
             _ => false,
         }
     }

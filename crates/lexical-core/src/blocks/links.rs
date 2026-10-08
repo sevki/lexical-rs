@@ -12,7 +12,11 @@ impl EditorState {
         if sel.is_collapsed() {
             if url.is_none() {
                 let p = self.inline_point(&sel.anchor);
-                if let Some(l) = self.ancestors(p.key).into_iter().find(|&a| self.node(a).is_inline()) {
+                if let Some(l) = self
+                    .ancestors(p.key)
+                    .into_iter()
+                    .find(|&a| self.node(a).is_inline())
+                {
                     self.unwrap_link(l);
                 }
             }
@@ -118,9 +122,11 @@ impl EditorState {
     pub fn link_at_selection(&self) -> Option<String> {
         let sel = self.selection.as_ref()?;
         let p = self.inline_point(&sel.anchor);
-        std::iter::once(p.key).chain(self.ancestors(p.key)).find_map(|k| match &self.get(k)?.data {
-            NodeData::Link { url, .. } => Some(url.clone()),
-            _ => None,
-        })
+        std::iter::once(p.key)
+            .chain(self.ancestors(p.key))
+            .find_map(|k| match &self.get(k)?.data {
+                NodeData::Link { url, .. } => Some(url.clone()),
+                _ => None,
+            })
     }
 }

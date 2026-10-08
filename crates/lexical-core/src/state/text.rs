@@ -23,12 +23,22 @@ impl EditorState {
     /// Selection points move with the characters.
     pub fn split_text(&mut self, key: NodeKey, offsets: &[usize]) -> Vec<NodeKey> {
         let node = self.node(key);
-        let NodeData::Text { text, format, style, mode, detail } = node.data.clone() else {
+        let NodeData::Text {
+            text,
+            format,
+            style,
+            mode,
+            detail,
+        } = node.data.clone()
+        else {
             return vec![key];
         };
         let len = text.chars().count();
-        let mut cuts: Vec<usize> =
-            offsets.iter().copied().filter(|&o| o > 0 && o < len).collect();
+        let mut cuts: Vec<usize> = offsets
+            .iter()
+            .copied()
+            .filter(|&o| o > 0 && o < len)
+            .collect();
         cuts.dedup();
         if cuts.is_empty() {
             return vec![key];
