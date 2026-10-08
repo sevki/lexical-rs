@@ -17,6 +17,7 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 
 ```sh
 cargo run -p lexical-adw --example demo     # needs libadwaita >= 1.5 (libadwaita-1-dev)
+cargo run -p lexical-adw --example collab   # two synced editors; toggle a peer offline, edit both, reconnect
 cargo test -p lexical-plugin-host           # plugin host logic, no Wasm runtime involved
 cargo test -p lexical-wasmtime --test wasm   # real components (needs: rustup target add wasm32-wasip2)
 # demo with the markdown shortcuts plugin:
