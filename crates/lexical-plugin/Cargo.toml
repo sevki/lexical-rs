@@ -1,0 +1,10 @@
+[package]
+name = "lexical-plugin"
+description = "SDK for writing Lexical editor plugins as WebAssembly components (WIT: lexical:editor)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+wit-bindgen = "0.62"

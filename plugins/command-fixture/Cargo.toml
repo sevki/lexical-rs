@@ -1,0 +1,20 @@
+[package]
+name = "command-fixture"
+description = "Test plugin: reacts to custom commands with block changes and nested dispatch"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lexical-plugin = { path = "../../crates/lexical-plugin" }
+
+[workspace]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
