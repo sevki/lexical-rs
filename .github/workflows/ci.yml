@@ -37,6 +37,15 @@ jobs:
       - name: Deeper randomised sessions
         run: LEXICAL_FUZZ_SEEDS=200 cargo test --release -p lexical-sync --test fuzz
 
+  iroh:
+    name: lexical-iroh (two nodes sync over iroh + jetstream)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p lexical-iroh
+
   yjs:
     name: lexical-yjs (interop with @lexical/yjs, real Lexical for JavaScript)
     runs-on: ubuntu-24.04

@@ -16,6 +16,7 @@ lexical-wasmtime = { path = "../lexical-wasmtime", optional = true }
 
 [dev-dependencies]
 lexical-sync = { path = "../lexical-sync" }
+lexical-iroh = { path = "../lexical-iroh" }
 
 [features]
 plugins = ["dep:lexical-wasmtime"]

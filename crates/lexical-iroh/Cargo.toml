@@ -1,0 +1,26 @@
+[package]
+name = "lexical-iroh"
+description = "Peer-to-peer transport for lexical-sync over iroh, carried by jetstream RPC"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The jetstream RPC framework (codecs, `#[service]`). Its `jetstream_iroh` glue crate pins
+# iroh 0.93, whose pre-release crypto pins cannot share a lockfile with wasmtime-wasi's
+# `rand` 0.10, so the ~100 lines of stream glue live in `transport.rs` on current iroh.
+jetstream = { version = "16", default-features = false }
+jetstream_rpc = "16"
+jetstream_wireformat = "16.3.1"
+iroh = "1"
+iroh-tickets = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+thiserror = "2"
+tracing = "0.1"
+
+[dev-dependencies]
+lexical-sync = { path = "../lexical-sync" }
+lexical-core = { path = "../lexical-core" }

@@ -13,12 +13,14 @@ A Rust port of the [Lexical](https://lexical.dev) rich text editor engine, model
 | [`lexical-wasmtime`](crates/lexical-wasmtime) | The wasmtime backend: `load(bytes)` / `load_document(bytes)` return a plugin for `Editor::add_plugin`, sandboxed with an empty WASI context, a memory cap and a fuel budget per call. To support another runtime (wasmer, a JavaScript host through `jco transpile`, …) implement the two traits; nothing else changes. |
 | [`plugins/lexical-js-shim`](plugins/lexical-js-shim) | **Lexical for JavaScript as a plugin.** A component (JS engine + the real `lexical` packages, built with `jco componentize`) behind the coarser `document-plugin` WIT interface: the host sends the document as Lexical JSON plus the selection, the shim runs the command through unmodified Lexical plugins (`registerRichText`, `@lexical/markdown` shortcuts) in a headless editor, and the resulting document is applied as one ordinary update. Which JS plugins run is one file, `src/plugins.js`. |
 | [`lexical-sync`](crates/lexical-sync) | Real-time collaboration on [Loro](https://loro.dev): the document is flattened to one rich text (line-terminator characters carry block attributes, per-key marks carry inline formats), edits become minimal CRDT operations, remote updates are unflattened back into the editor. Local-only undo/redo, cursors that follow their text, and remote presence. |
+| [`lexical-iroh`](crates/lexical-iroh) | **Peer-to-peer transport** for `lexical-sync`: every peer serves a small [jetstream](https://jetstream.rs) RPC service over [iroh](https://iroh.computer) (QUIC, dialed by public key, relay + hole punching), so two devices co-edit by exchanging a ticket, with no server. Reconnects with backoff and re-syncs on every connect. The payload is opaque bytes, so it can carry `lexical-yjs` messages too. |
 | [`lexical-yjs`](crates/lexical-yjs) | **Interop with Lexical for JavaScript's Yjs collaboration** (`@lexical/yjs`, binding v1): reads and writes the same `yrs` document layout, so a Rust editor and a Lexical web editor can edit one document. Local changes are written as minimal diffs; includes the y-protocols sync messages. Tested against the real `lexical` + `@lexical/yjs` + `yjs` packages. |
 | [`verus/`](verus) | Formal proofs (Verus) in the style of [dafny-replay](https://github.com/metareflection/dafny-replay): generic **replay** (undo/redo) and **authority** (sync) kernels proved once, the editor as a domain with proved invariants and per-command laws, plus proofs for the view-sync algorithms. See [`verus/GUARANTEES.md`](verus/GUARANTEES.md). |
 
 ```sh
 cargo run -p lexical-adw --example demo     # needs libadwaita >= 1.5 (libadwaita-1-dev)
 cargo run -p lexical-adw --example collab   # two synced editors; toggle a peer offline, edit both, reconnect
+cargo run -p lexical-adw --example p2p      # one editor shared with other devices over iroh: Share on one, paste the ticket into Join on the other
 cargo test -p lexical-plugin-host           # plugin host logic, no Wasm runtime involved
 cargo test -p lexical-wasmtime --test wasm   # real components (needs: rustup target add wasm32-wasip2)
 # demo with the markdown shortcuts plugin:
@@ -39,6 +41,7 @@ Tagged releases (`v*`) carry Flatpak bundles for x86_64 and aarch64 (phones, pos
 flatpak install --user lexical-demo-aarch64.flatpak   # or -x86_64; GNOME 49 runtime is pulled from Flathub
 flatpak run io.github.sevki.LexicalDemo                              # editor playground
 flatpak run --command=lexical-collab io.github.sevki.LexicalDemo     # collaboration demo
+flatpak run --command=lexical-p2p io.github.sevki.LexicalDemo        # peer-to-peer demo (needs network)
 ```
 
 To build it yourself: `flatpak-builder --user --install-deps-from=flathub --repo=repo build packaging/flatpak/io.github.sevki.LexicalDemo.yml`
