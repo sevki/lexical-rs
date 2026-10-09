@@ -7,10 +7,10 @@
   <project_license>MIT</project_license>
   <url type="homepage">https://github.com/sevki/lexical-rs</url>
   <description>
-    <p>A playground for lexical-rs: a rich text editor with a formatting toolbar and a live view of the Lexical JSON, plus a collaboration demo with two editors that sync and merge offline edits.</p>
+    <p>A playground for lexical-rs: a rich text editor with a formatting toolbar and a live view of the Lexical JSON, plus a collaboration demo with two editors that sync and merge offline edits, and a peer-to-peer demo that shares one document between devices over iroh.</p>
   </description>
   <launchable type="desktop-id">io.github.sevki.LexicalDemo.desktop</launchable>
-  <provides><binary>lexical-demo</binary><binary>lexical-collab</binary></provides>
+  <provides><binary>lexical-demo</binary><binary>lexical-collab</binary><binary>lexical-p2p</binary></provides>
   <content_rating type="oars-1.1" />
   <releases>
     <release version="0.1.0" date="2026-10-08" />
