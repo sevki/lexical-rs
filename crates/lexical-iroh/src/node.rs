@@ -1,14 +1,14 @@
 use crate::service::{Handshake, Replicate, ReplicateChannel, ReplicateService};
 use crate::{Error, Result};
-use crate::transport::{IrohServer, IrohTransport};
-use iroh::endpoint::{presets, Endpoint};
-use iroh::protocol::Router;
-use iroh::EndpointAddr;
-pub use iroh::EndpointId;
+use jetstream_iroh::iroh::protocol::Router;
+use jetstream_iroh::iroh::EndpointAddr;
+pub use jetstream_iroh::iroh::EndpointId;
 pub use iroh_tickets::endpoint::EndpointTicket as Ticket;
-use jetstream::prelude::{Context, Protocol};
+use jetstream::prelude::Context;
+use jetstream_iroh::iroh::endpoint::Endpoint;
+use jetstream_iroh::{client_builder, server_builder};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, oneshot};
@@ -32,7 +32,8 @@ pub enum Event {
 }
 
 struct Inner {
-    endpoint: Endpoint,
+    /// Set once `server_builder` has bound it (the service it serves needs this struct first).
+    endpoint: OnceLock<Endpoint>,
     events: mpsc::UnboundedSender<Event>,
     peers: Mutex<HashMap<EndpointId, mpsc::UnboundedSender<Vec<u8>>>>,
     handle: tokio::runtime::Handle,
@@ -54,7 +55,7 @@ impl std::fmt::Debug for Handler {
     }
 }
 
-const ALPN: &[u8] = <ReplicateChannel as Protocol>::NAME.as_bytes();
+const KEEPALIVE: Duration = Duration::from_secs(10);
 const BACKOFF_START: Duration = Duration::from_millis(500);
 const BACKOFF_MAX: Duration = Duration::from_secs(30);
 
@@ -70,16 +71,19 @@ impl Node {
             .map_err(|e| Error::Endpoint(e.to_string()))?;
         let (events, rx) = mpsc::unbounded_channel();
         let (inner, router) = rt.block_on(async {
-            let endpoint = Endpoint::bind(presets::N0).await.map_err(|e| Error::Endpoint(e.to_string()))?;
-            let inner = Arc::new(Inner { endpoint: endpoint.clone(), events, peers: Mutex::default(), handle: tokio::runtime::Handle::current() });
-            let router = Router::builder(endpoint)
-                .accept(
-                    ALPN, IrohServer::new(ReplicateService { inner: Handler(inner.clone()) }),
-                )
-                .spawn();
+            let inner = Arc::new(Inner {
+                endpoint: OnceLock::new(),
+                events,
+                peers: Mutex::default(),
+                handle: tokio::runtime::Handle::current(),
+            });
+            let router = server_builder(ReplicateService { inner: Handler(inner.clone()) })
+                .await
+                .map_err(|e| Error::Endpoint(e.to_string()))?;
+            let _ = inner.endpoint.set(router.endpoint().clone());
             let announce = inner.clone();
             tokio::spawn(async move {
-                announce.endpoint.online().await;
+                announce.endpoint().online().await;
                 let _ = announce.events.send(Event::Ready(announce.ticket()));
             });
             Ok::<_, Error>((inner, router))
@@ -89,7 +93,7 @@ impl Node {
 
     /// This node's id, which is its public key.
     pub fn id(&self) -> EndpointId {
-        self.inner.endpoint.id()
+        self.inner.endpoint().id()
     }
 
     /// What another node needs to dial this one.
@@ -131,8 +135,12 @@ impl Drop for Node {
 }
 
 impl Inner {
+    fn endpoint(&self) -> &Endpoint {
+        self.endpoint.get().expect("endpoint is set before the node is returned")
+    }
+
     fn ticket(&self) -> Ticket {
-        Ticket::new(self.endpoint.addr())
+        Ticket::new(self.endpoint().addr())
     }
 
     /// Start the connection task for `addr` unless there is one. Returns whether it started.
@@ -184,13 +192,8 @@ async fn session(
     outbox: &mut mpsc::UnboundedReceiver<Vec<u8>>,
     backoff: &mut Duration,
 ) -> RpcResult<()> {
-    let conn = inner
-        .endpoint
-        .connect(addr.clone(), ALPN)
-        .await
-        .map_err(|e| e.to_string())?;
-    let streams = conn.open_bi().await.map_err(|e| e.to_string())?;
-    let channel = ReplicateChannel::new(16, Box::new(IrohTransport::<ReplicateChannel>::from(streams)));
+    let transport = client_builder::<ReplicateChannel>(addr.clone()).await.map_err(|e| e.to_string())?;
+    let channel = ReplicateChannel::new(16, Box::new(transport));
 
     let Some(mine) = inner.ask(Event::Version).await else { return Ok(()) };
     let theirs = channel
@@ -211,14 +214,17 @@ async fn session(
         return Ok(());
     }
 
+    // An empty push is a keepalive: it surfaces a vanished peer so we reconnect.
+    let mut keepalive = tokio::time::interval(KEEPALIVE);
     loop {
-        tokio::select! {
-            update = outbox.recv() => {
-                let Some(update) = update else { return Ok(()) };
-                channel.push(Context::default(), update).await.map_err(|e| e.to_string())?;
-            }
-            reason = conn.closed() => return Err(reason.to_string()),
-        }
+        let update = tokio::select! {
+            update = outbox.recv() => match update {
+                Some(update) => update,
+                None => return Ok(()),
+            },
+            _ = keepalive.tick() => Vec::new(),
+        };
+        channel.push(Context::default(), update).await.map_err(|e| e.to_string())?;
     }
 }
 
@@ -227,7 +233,7 @@ impl Replicate for Handler {
         let bad = |what: String| jetstream::prelude::Error::from(std::io::Error::other(what));
         let ticket: Ticket = ticket.parse().map_err(|e| bad(format!("invalid ticket: {e}")))?;
         let addr = ticket.endpoint_addr().clone();
-        if addr.id != self.0.endpoint.id() {
+        if addr.id != self.0.endpoint().id() {
             // A stranger: dial them back so our updates reach them too.
             self.0.ensure_peer(addr);
         }
@@ -238,7 +244,9 @@ impl Replicate for Handler {
     }
 
     async fn push(&self, _ctx: Context, update: Vec<u8>) -> jetstream::prelude::Result<String> {
-        let _ = self.0.events.send(Event::Update(update));
+        if !update.is_empty() {
+            let _ = self.0.events.send(Event::Update(update));
+        }
         Ok(String::new())
     }
 }
