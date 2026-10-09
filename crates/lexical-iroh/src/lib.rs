@@ -36,7 +36,6 @@
 
 mod node;
 mod service;
-mod transport;
 
 pub use node::{EndpointId, Event, Node, Ticket};
 pub use service::Replicate;

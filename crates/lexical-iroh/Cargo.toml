@@ -7,17 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-# The jetstream RPC framework (codecs, `#[service]`). Its `jetstream_iroh` glue crate pins
-# iroh 0.93, whose pre-release crypto pins cannot share a lockfile with wasmtime-wasi's
-# `rand` 0.10, so the ~100 lines of stream glue live in `transport.rs` on current iroh.
-jetstream = { version = "16", default-features = false }
-jetstream_rpc = "16"
-jetstream_wireformat = "16.3.1"
-iroh = "1"
+# jetstream's iroh support (`server_builder` / `client_builder`, as in its iroh_echo example).
+# The 16.0.0 on crates.io pins iroh 0.93, which cannot share a lockfile with wasmtime-wasi;
+# main is on iroh 1.x. Switch to the crate once it is released.
+jetstream = { git = "https://github.com/sevki/jetstream", rev = "b7fe331096380554deab2129c488cd647f9627db", default-features = false, features = ["iroh"] }
+jetstream_iroh = { git = "https://github.com/sevki/jetstream", rev = "b7fe331096380554deab2129c488cd647f9627db" }
 iroh-tickets = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-futures = "0.3"
 thiserror = "2"
 tracing = "0.1"
 
