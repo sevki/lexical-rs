@@ -21,8 +21,20 @@ modules:
       # Flathub itself would need vendored sources (flatpak-cargo-generator).
       build-args:
         - --share=network
+      # aws-lc-sys (pulled in by iroh through rustls, for the p2p demo) compiles its CPU
+      # jitter entropy source with -O0 and refuses to build when the compiler flags also say
+      # -O2, which the SDK's default flags do: cc-rs appends the environment's CFLAGS after
+      # the crate's own. So build C code with debug info only, and leave optimisation to the
+      # crates that ask for it.
+      cflags: -g
+      cflags-override: true
+      cxxflags: -g
+      cxxflags-override: true
       env:
         CARGO_HOME: /run/build/lexical-demo/cargo
+        # cc-rs looks at the target-specific variable first; pin it too.
+        CFLAGS_x86_64_unknown_linux_gnu: -g
+        CFLAGS_aarch64_unknown_linux_gnu: -g
     build-commands:
       - cargo build --release -p lexical-adw --example demo --example collab --example p2p
       - install -Dm755 target/release/examples/demo /app/bin/lexical-demo
