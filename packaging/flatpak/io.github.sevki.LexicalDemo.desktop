@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lexical Demo
+Comment=Rich text editor built on the Lexical Rust port
+Exec=lexical-demo
+Icon=io.github.sevki.LexicalDemo
+Terminal=false
+Categories=Utility;TextEditor;GTK;

@@ -1,0 +1,22 @@
+[package]
+name = "lexical-iroh"
+description = "Peer-to-peer transport for lexical-sync over iroh, carried by jetstream RPC"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# jetstream's iroh support (`server_builder` / `client_builder`, as in its iroh_echo example).
+# The 16.0.0 on crates.io pins iroh 0.93, which cannot share a lockfile with wasmtime-wasi;
+# main is on iroh 1.x. Switch to the crate once it is released.
+jetstream = { git = "https://github.com/sevki/jetstream", rev = "b7fe331096380554deab2129c488cd647f9627db", default-features = false, features = ["iroh"] }
+jetstream_iroh = { git = "https://github.com/sevki/jetstream", rev = "b7fe331096380554deab2129c488cd647f9627db" }
+iroh-tickets = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+thiserror = "2"
+tracing = "0.1"
+
+[dev-dependencies]
+lexical-sync = { path = "../lexical-sync" }
+lexical-core = { path = "../lexical-core" }

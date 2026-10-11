@@ -121,9 +121,17 @@ fn build_ui(app: &adw::Application) {
     }
 
     toolbar_view.add_top_bar(&header);
-    toolbar_view.add_top_bar(view.toolbar());
+    // The toolbar is wider than a phone screen, so let it scroll sideways.
+    let toolbar_scroll = gtk::ScrolledWindow::builder()
+        .child(view.toolbar())
+        .hscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .propagate_natural_height(true)
+        .build();
+    toolbar_view.add_top_bar(&toolbar_scroll);
     toolbar_view.set_content(Some(&split));
     window.set_content(Some(&toolbar_view));
+    window.set_width_request(320);
     window.present();
     view.text_view().grab_focus();
 }

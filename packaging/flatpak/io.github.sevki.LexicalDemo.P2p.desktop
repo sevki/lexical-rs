@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lexical Peer-to-peer Demo
+Comment=Co-edit one document across devices over iroh, with no server
+Exec=lexical-p2p
+Icon=io.github.sevki.LexicalDemo
+Terminal=false
+Categories=Utility;TextEditor;GTK;Network;
