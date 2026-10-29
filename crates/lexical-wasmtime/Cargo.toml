@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 lexical-plugin-host = { path = "../lexical-plugin-host" }
 lexical-plugin = { path = "../lexical-plugin" }
-wasmtime = { version = "49", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
+wasmtime = { version = "50", default-features = false, features = ["component-model", "runtime", "cranelift", "std"] }
 wasmtime-wasi = "49"
 
 [dev-dependencies]
